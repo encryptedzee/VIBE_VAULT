@@ -87,6 +87,16 @@ function App() {
   }, [])
 
   useEffect(() => {
+    if (session && location.pathname === '/') {
+      const pendingPlan = sessionStorage.getItem('vibevault-pending-upgrade')
+      if (pendingPlan) {
+        sessionStorage.removeItem('vibevault-pending-upgrade')
+        navigate('/app', { state: { upgradePlan: pendingPlan } })
+      }
+    }
+  }, [session, location.pathname, navigate])
+
+  useEffect(() => {
     if (!splash) return
     const timer = window.setTimeout(() => {
       setSplash(false)
@@ -102,7 +112,7 @@ function App() {
 
   let screen
   if (location.pathname.startsWith('/auth')) {
-    screen = <AuthPage onBack={() => navigate('/')} onSuccess={() => navigate('/app', { state: location.state })} />
+    screen = <AuthPage pendingPlan={location.state?.upgradePlan} onBack={() => navigate('/')} onSuccess={() => navigate('/app', { state: location.state })} />
   } else if (location.pathname.startsWith('/app')) {
     screen = authReady && session
       ? <Dashboard session={session} initialPlan={location.state?.upgradePlan} onSignOut={() => { supabase?.auth.signOut(); navigate('/') }} />
@@ -209,7 +219,7 @@ function AuthRedirect({ ready, onGo }) {
   return <div className="auth-redirect"><StatusLine>VAULT ACCESS</StatusLine><h1 className="display">{ready ? 'AUTHENTICATION REQUIRED' : 'RESTORING SESSION'}</h1><p>{ready ? 'Sign in to access your saved projects, conversations and handoff engine.' : 'Checking your secure session.'}</p>{ready && <Button onClick={onGo}>GO TO VAULT ACCESS <ArrowRight size={15}/></Button>}</div>
 }
 
-function AuthPage({ onBack, onSuccess }) {
+function AuthPage({ onBack, onSuccess, pendingPlan }) {
   const [mode, setMode] = useState('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -219,6 +229,7 @@ function AuthPage({ onBack, onSuccess }) {
 
   const continueWithGithub = async () => {
     setNotice(null)
+    if (pendingPlan) sessionStorage.setItem('vibevault-pending-upgrade', pendingPlan)
     if (!hasSupabaseConfig) { setNotice({ type: 'error', text: 'Supabase is not connected yet. Configure your project URL and anon key first.' }); return }
     setBusy(true)
     try {
