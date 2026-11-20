@@ -383,3 +383,49 @@ button:disabled { cursor: not-allowed !important; opacity: .42; transform: none 
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
   .reveal { opacity: 1; transform: none; }
 }
+
+
+/* VibeVault production plan, OAuth and checkout controls */
+.github-auth-btn { width: 100%; min-height: 48px; border-color: rgba(255,255,255,.28); }
+.auth-divider { display: flex; align-items: center; gap: 12px; margin: 1px 0; color: #748091; font-size: 8px; font-weight: 700; letter-spacing: .15em; }
+.auth-divider:before, .auth-divider:after { height: 1px; flex: 1; background: hsl(var(--border)); content: ''; }
+.usage-meter { display: flex; align-items: center; justify-content: space-between; gap: 9px; margin: 15px 0 17px; padding: 12px 10px; border: 1px solid rgba(90,216,255,.2); background: rgba(90,216,255,.035); }
+.usage-meter > div { display: grid; min-width: 0; gap: 5px; }
+.usage-meter span { color: #7d8999; font-size: 8px; font-weight: 700; letter-spacing: .13em; }
+.usage-meter strong { color: #c7eefa; font-size: 9px; letter-spacing: .04em; }
+.usage-meter .btn-ghost { min-height: 34px; padding: 0 11px; font-size: 8px; }
+.bundle-item-row { display: grid; gap: 5px; padding: 4px 0; }
+.bundle-item-row .bundle-item { min-width: 0; }
+.bundle-mode-select { width: 100%; min-height: 30px; padding: 0 8px; border: 1px solid rgba(90,216,255,.2); border-radius: 6px; background: #0a0d13; color: #a9ddec; font-size: 8px; letter-spacing: .1em; }
+.handoff-actions { grid-template-columns: 1fr 1fr; }
+.handoff-actions .btn-solid, .handoff-actions .btn-ghost { min-width: 0; white-space: normal; }
+.upgrade-summary { display: grid; gap: 6px; margin-bottom: 18px; padding: 14px; border: 1px solid hsl(var(--border)); background: rgba(255,255,255,.025); }
+.upgrade-summary > strong { color: #e8edf5; font-size: 14px; overflow-wrap: anywhere; }
+.upgrade-plan-name { color: hsl(var(--kinetic)); font-size: 9px; font-weight: 700; letter-spacing: .13em; }
+.upgrade-summary p { margin: 5px 0 0; color: #a8b2c0; font-size: 11px; line-height: 1.6; }
+.upgrade-summary .upgrade-status { color: #86caff; }
+.upgrade-tabs { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid hsl(var(--border)); }
+.upgrade-tabs button { min-height: 48px; padding: 8px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #8390a0; cursor: pointer; font-size: 9px; font-weight: 700; letter-spacing: .1em; }
+.upgrade-tabs button.active { border-bottom-color: hsl(var(--primary)); color: #f3f6fb; }
+.checkout-panel { display: grid; gap: 13px; min-height: 210px; align-content: start; padding: 20px 2px 5px; }
+.checkout-panel p { margin: 0; color: #a2adbc; font-size: 12px; line-height: 1.7; }
+.pay-online-btn { width: 100%; }
+.mpesa-price { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 13px; border: 1px solid rgba(90,216,255,.22); background: rgba(90,216,255,.04); }
+.mpesa-price strong { color: #fff; font-family: var(--font-display); font-size: 31px; font-weight: 800; }
+.mpesa-price span { color: hsl(var(--kinetic)); font-size: 9px; font-weight: 700; letter-spacing: .1em; text-align: right; }
+.mpesa-detail { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid hsl(var(--border)); }
+.mpesa-detail span { color: #7d8998; font-size: 9px; font-weight: 700; letter-spacing: .13em; }
+.mpesa-detail strong { color: #e8edf4; font-size: 12px; text-align: right; overflow-wrap: anywhere; }
+.upgrade-footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-top: 16px; padding-top: 15px; border-top: 1px solid hsl(var(--border)); }
+.upgrade-footer .btn-ghost { min-height: 40px; padding: 0 14px; font-size: 9px; }
+.clean-spec-panel { display: grid; gap: 12px; }
+.clean-spec-panel > .btn-solid { justify-self: start; }
+.locked-prompt { border: 1px solid rgba(255,255,255,.12); }
+@media (max-width: 520px) {
+  .usage-meter { align-items: flex-start; flex-direction: column; }
+  .usage-meter .btn-ghost { width: 100%; }
+  .upgrade-tabs button { font-size: 8px; }
+  .upgrade-footer { flex-direction: column; }
+  .upgrade-footer .btn-ghost { width: 100%; }
+  .handoff-actions { grid-template-columns: 1fr; }
+}
