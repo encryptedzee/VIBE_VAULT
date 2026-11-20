@@ -276,7 +276,6 @@ function AuthPage({ onBack, onSuccess }) {
 }
 
 function Dashboard({ session, initialPlan, onSignOut }) {
-  const location = useLocation()
   const user = session.user
   const [profile, setProfile] = useState(null)
   const [projects, setProjects] = useState([])
@@ -441,7 +440,7 @@ function Dashboard({ session, initialPlan, onSignOut }) {
     setProfile(data); setModal(null); showToast('Global style saved.')
   }
 
-  function makeAgentMd() {
+  function makeAgentMd(targetOverride = targetAi) {
     const projectRules = activeProject?.project_rules?.trim() || 'No project-specific rules have been added yet.'
     const style = profile?.global_style?.trim() || 'No global style preferences have been set.'
     const convoContext = selectedConversations.map((conversation, index) => {
@@ -453,10 +452,10 @@ function Dashboard({ session, initialPlan, onSignOut }) {
     return `# AGENT.md — ${activeProject?.title || 'Untitled Project'}\n\n## HANDOFF TARGET\n${targetAi}\n\n## ASSIGNED ROLE\n${activeSkill?.role_name || 'General Assistant'}\n\n## ROLE INSTRUCTIONS\n${activeSkill?.instructions || 'Act as a careful, context-aware collaborator. Ask before making assumptions.'}\n\n## GLOBAL WORKING STYLE\n${style}\n\n## PROJECT DESCRIPTION\n${activeProject?.description || 'No project description supplied.'}\n\n## PROJECT RULES\n${projectRules}\n\n## RAW SOURCE MATERIAL\n${convoContext || 'No raw conversations selected. Do not invent missing context.'}\n\n## MANDATORY 3-POINT CONFIRMATION — DO THIS BEFORE WRITING CODE\n1. **Confirm the role:** State that you understand and accept the assigned role: ${activeSkill?.role_name || 'General Assistant'}.\n2. **Prove context transfer:** Summarize the supplied raw conversations and identify the user's actual goals, constraints and decisions without silently rewriting the source material.\n3. **Expose uncertainty:** List assumptions, contradictions and missing information. Ask focused questions where needed. Do not write or modify code until the user approves this confirmation.\n\n---\nEnd of handoff. Preserve the user's original intent and ask before changing established decisions.\n`
   }
 
-  async function saveHandoff(copyToClipboard = true, targetOverride = targetAi) {
+  async function saveHandoff(copyToClipboard = true, targetOverride = targetAi, contentOverride = null) {
     if (!activeProject) { showToast('Create a project before generating a handoff.'); return }
     if (!activeSkill) { showToast('Create or select an AGENT.md role first.'); return }
-    const content = makeAgentMd()
+    const content = contentOverride || makeAgentMd(targetOverride)
     try {
       if (copyToClipboard) await navigator.clipboard.writeText(content)
       const { data, error } = await supabase.from('handoffs').insert({ project_id: activeProject.id, user_id: user.id, target_ai: targetOverride, role_name: activeSkill.role_name, generated_agent_md: content, confirmed: false }).select().single()
@@ -468,11 +467,11 @@ function Dashboard({ session, initialPlan, onSignOut }) {
 
   async function openInAI(target) {
     if (!activeProject || !activeSkill) { showToast('Select a project and role before launching an AI handoff.'); return }
-    const content = makeAgentMd()
+    const content = makeAgentMd(target)
     const encoded = encodeURIComponent(content)
     const url = target === 'Claude' ? `https://claude.ai/new?q=${encoded}` : `https://chatgpt.com/?q=${encoded}`
     window.open(url, '_blank', 'noopener,noreferrer')
-    await saveHandoff(false, target)
+    await saveHandoff(false, target, content)
   }
 
   async function downloadHandoff() {
@@ -602,7 +601,7 @@ function UpgradeModal({ plan, message, email, isPro, onClose, onRefresh, refresh
     {tab === 'global' ? <div className="checkout-panel">
       <span className="field-label">CARD CHECKOUT</span>
       <p>Continue to the secure payment page for {label}. Your signed-in email will be attached to the checkout link.</p>
-      {checkoutUrl ? <Button block onClick={payOnline}>PAY ONLINE NOW <ArrowUpRight size={15}/></Button> : <div className="notice notice-error"><CircleHelp size={17}/><span>Online checkout is not configured yet. Add {plan === 'lifetime' ? 'VITE_LIFETIME_CHECKOUT_URL' : 'VITE_PRO_CHECKOUT_URL'} to your deployment environment.</span></div>}
+      {checkoutUrl ? <Button className="pay-online-btn" onClick={payOnline}>PAY ONLINE NOW <ArrowUpRight size={15}/></Button> : <div className="notice notice-error"><CircleHelp size={17}/><span>Online checkout is not configured yet. Add {plan === 'lifetime' ? 'VITE_LIFETIME_CHECKOUT_URL' : 'VITE_PRO_CHECKOUT_URL'} to your deployment environment.</span></div>}
     </div> : <div className="checkout-panel mpesa-panel">
       <span className="field-label">PAYMENT DETAILS</span>
       <div className="mpesa-price"><strong>{price}</strong><span>{label}</span></div>
