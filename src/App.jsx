@@ -8,6 +8,11 @@ import {
 } from 'lucide-react'
 import { hasSupabaseConfig, supabase } from './lib/supabase'
 
+const PRO_CHECKOUT_URL = import.meta.env.VITE_PRO_CHECKOUT_URL || ''
+const LIFETIME_CHECKOUT_URL = import.meta.env.VITE_LIFETIME_CHECKOUT_URL || ''
+const LIPA_NAMBA = import.meta.env.VITE_LIPA_NAMBA || ''
+const LIPA_NAME = import.meta.env.VITE_LIPA_NAME || ''
+
 const SOURCE_AIS = ['ALL', 'CLAUDE', 'CHATGPT', 'LOVABLE', 'BASE44', 'TRAE', 'QODER', 'GEMINI']
 const TARGET_AIS = ['Claude', 'ChatGPT', 'Lovable', 'Base44', 'Trae', 'Qoder', 'Gemini', 'Other']
 const DEFAULT_SKILLS = [
@@ -34,8 +39,8 @@ function Reveal({ children, delay = 0, className = '' }) {
 
 function Brand({ compact = false }) {
   return <div className="brand-lockup">
-    <span className="brand-mark">B<span>R</span></span>
-    {!compact && <span className="brand-word">BRAINRELAY</span>}
+    <span className="brand-mark">VV</span>
+    {!compact && <span className="brand-word">VIBEVAULT</span>}
   </div>
 }
 
@@ -66,7 +71,7 @@ function App() {
   const location = useLocation()
   const [session, setSession] = useState(null)
   const [authReady, setAuthReady] = useState(false)
-  const [splash, setSplash] = useState(!sessionStorage.getItem('brainrelay-splash-seen'))
+  const [splash, setSplash] = useState(!sessionStorage.getItem('vibevault-splash-seen'))
 
   useEffect(() => {
     let alive = true
@@ -85,25 +90,25 @@ function App() {
     if (!splash) return
     const timer = window.setTimeout(() => {
       setSplash(false)
-      sessionStorage.setItem('brainrelay-splash-seen', '1')
+      sessionStorage.setItem('vibevault-splash-seen', '1')
     }, 1600)
     return () => window.clearTimeout(timer)
   }, [splash])
 
   const skipSplash = () => {
     setSplash(false)
-    sessionStorage.setItem('brainrelay-splash-seen', '1')
+    sessionStorage.setItem('vibevault-splash-seen', '1')
   }
 
   let screen
   if (location.pathname.startsWith('/auth')) {
-    screen = <AuthPage onBack={() => navigate('/')} onSuccess={() => navigate('/app')} />
+    screen = <AuthPage onBack={() => navigate('/')} onSuccess={() => navigate('/app', { state: location.state })} />
   } else if (location.pathname.startsWith('/app')) {
     screen = authReady && session
-      ? <Dashboard session={session} onSignOut={() => { supabase?.auth.signOut(); navigate('/') }} />
+      ? <Dashboard session={session} initialPlan={location.state?.upgradePlan} onSignOut={() => { supabase?.auth.signOut(); navigate('/') }} />
       : <AuthRedirect ready={authReady} onGo={() => navigate('/auth')} />
   } else {
-    screen = <Landing onAuth={() => navigate('/auth')} />
+    screen = <Landing onAuth={() => navigate('/auth')} onPlanClick={(plan) => navigate(session ? '/app' : '/auth', { state: { upgradePlan: plan } })} />
   }
 
   return <>
@@ -118,7 +123,7 @@ function Splash({ onSkip }) {
     <div className="splash-center">
       <div className="splash-pulse" />
       <span className="eyebrow">INITIALIZING NEURAL VAULT</span>
-      <h1 className="display splash-title">BRAINRELAY</h1>
+      <h1 className="display splash-title">VIBEVAULT</h1>
       <div className="splash-progress"><span /></div>
       <span className="micro-copy">MEMORY SYSTEM / BUILD 01.01</span>
     </div>
@@ -126,7 +131,7 @@ function Splash({ onSkip }) {
   </div>
 }
 
-function Landing({ onAuth }) {
+function Landing({ onAuth, onPlanClick }) {
   const scrollTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
   return <main className="landing-page">
     <header className="top-nav">
@@ -145,7 +150,7 @@ function Landing({ onAuth }) {
       <div className="hero-content">
         <div className="eyebrow hero-eyebrow"><span className="eyebrow-rule"/>CLOUD AI MEMORY & DYNAMIC HANDOFF CONTROL</div>
         <h1 className="display hero-title">STOP TREATING EVERY AI<br/><span className="hero-gradient">LIKE A STRANGER</span></h1>
-        <p className="hero-copy">GitHub stores your code. BrainRelay stores your exact raw AI conversations, personal coding rules, and role-specific <code>AGENT.md</code> handoffs across Claude, ChatGPT, Lovable, Base44, Trae, and Qoder.</p>
+        <p className="hero-copy">GitHub stores your code. VibeVault stores your exact raw AI conversations, personal coding rules, and role-specific <code>AGENT.md</code> handoffs across Claude, ChatGPT, Lovable, Base44, Trae, and Qoder.</p>
         <div className="hero-actions"><Button onClick={onAuth}>OPEN CONTROL VAULT <ArrowUpRight size={16}/></Button><Button variant="ghost" onClick={() => scrollTo('relay-loop')}>EXPLORE THE RELAY <ArrowDown size={15}/></Button></div>
       </div>
       <div className="hero-strip">
@@ -162,7 +167,7 @@ function Landing({ onAuth }) {
           {[
             ['01', 'PULL & VAULT RAW CONVOS', 'Save exact, unedited prompts and full chats from Claude, ChatGPT, or Trae before free limits hit or heavy IDEs crash.'],
             ['02', 'ASSIGN AGENT.MD SKILL', 'Pick the exact role for your next move — Backend Architect, UI Designer, Image Prompt Engineer, or a custom skill — and bundle your rules.'],
-            ['03', 'IMPORT & FORCE CONFIRMATION', 'Paste into the next AI. BrainRelay asks the new model to confirm its assigned role and summarize your raw ideas before writing code.']
+            ['03', 'IMPORT & FORCE CONFIRMATION', 'Paste into the next AI. VibeVault asks the new model to confirm its assigned role and summarize your raw ideas before writing code.']
           ].map(([number, title, copy], index) => <Reveal key={number} delay={index * 100}><article className="relay-card"><span className="relay-number">{number}</span><h3 className="display relay-card-title">{title}</h3><p>{copy}</p><div className="card-bottom-rule"/></article></Reveal>)}
         </div>
       </div>
@@ -172,24 +177,24 @@ function Landing({ onAuth }) {
       <div className="section-container">
         <Reveal><div className="eyebrow pricing-eyebrow"><span className="eyebrow-rule"/>ACCESS TIERS</div><h2 className="display pricing-title">OWN YOUR AI BRAIN FOREVER.</h2></Reveal>
         <div className="pricing-grid">
-          <Reveal delay={0}><PlanCard name="STARTER VAULT" price="$0" period="FOREVER" features={['Exact raw conversation archive','Up to 2 active projects','3 built-in AGENT.md role skills','Unlimited manual copy & .md exports']} action="START FREE" onClick={onAuth}/></Reveal>
-          <Reveal delay={100}><PlanCard featured name="PRO VIBE-CODER" price="$9" period="MONTH" features={['Unlimited projects & raw conversation history','AI Smart Spec Cleaner for messy raw ideas','Unlimited custom AGENT.md roles','Full handoff confirmation log']} action="UPGRADE TO PRO" onClick={onAuth}/></Reveal>
-          <Reveal delay={200}><PlanCard name="STUDIO & AGENCY" price="$29" period="MONTH" features={['Everything in Pro','Shared Team Vaults for co-founders & devs','Client-separated AGENT.md rulebooks','Priority support']} action="LAUNCH STUDIO" onClick={onAuth}/></Reveal>
+          <Reveal delay={0}><PlanCard name="STARTER VAULT" price="$0" period="FOREVER" features={['1 active project','3 saved raw conversations','3 built-in AGENT.md roles','1-click launch in Claude & ChatGPT']} action="START FREE" onClick={onAuth}/></Reveal>
+          <Reveal delay={100}><PlanCard featured name="PRO VIBE-CODER" price="$9" period="MONTH" features={['Unlimited projects & raw conversations','Built-in AI Smart Spec Cleaner','Unlimited custom AGENT.md roles','Priority MCP plugin access']} action="UPGRADE TO PRO" onClick={() => onPlanClick('pro')}/></Reveal>
+          <Reveal delay={200}><PlanCard name="FOUNDER LIFETIME" price="$49" period="ONE-TIME" badge="FIRST 50 FOUNDERS" features={['Everything in Pro forever','Zero monthly bills','VIP Founder badge','Direct feature voting']} action="CLAIM FOUNDER LIFETIME" onClick={() => onPlanClick('lifetime')}/></Reveal>
         </div>
-        <p className="pricing-footnote">Plans are presented as product tiers. Subscription checkout and team invitations require billing and collaboration services to be configured.</p>
+        
       </div>
     </section>
 
     <section className="final-cta">
       <div className="section-container cta-inner"><div><div className="eyebrow"><span className="eyebrow-rule"/>YOUR MEMORY. YOUR RULES.</div><h2 className="display cta-title">YOUR IDEAS BELONG TO YOU.<br/>NOT ONE AI TAB.</h2></div><Button onClick={onAuth}>CREATE FREE VAULT <ArrowUpRight size={16}/></Button></div>
     </section>
-    <footer className="site-footer"><div className="footer-brand"><Brand/><StatusLine>MEMORY SYSTEM ACTIVE</StatusLine></div><span>© {new Date().getFullYear()} BRAINRELAY / VIBEVAULT</span><span>KEEP THE CONTEXT. MOVE THE WORK.</span></footer>
+    <footer className="site-footer"><div className="footer-brand"><Brand/><StatusLine>MEMORY SYSTEM ACTIVE</StatusLine></div><span>© {new Date().getFullYear()} VIBEVAULT / VIBEVAULT</span><span>KEEP THE CONTEXT. MOVE THE WORK.</span></footer>
   </main>
 }
 
-function PlanCard({ name, price, period, features, action, onClick, featured = false }) {
+function PlanCard({ name, price, period, features, action, onClick, featured = false, badge = '' }) {
   return <article className={`plan-card ${featured ? 'plan-featured' : ''}`}>
-    {featured && <span className="popular-badge">MOST POPULAR</span>}
+    {(featured || badge) && <span className="popular-badge">{badge || 'MOST POPULAR'}</span>}
     <span className="plan-name">{name}</span>
     <div className="plan-price-row"><strong className="display plan-price">{price}</strong><span> / {period}</span></div>
     <div className="plan-divider"/>
@@ -210,6 +215,17 @@ function AuthPage({ onBack, onSuccess }) {
   const [displayName, setDisplayName] = useState('')
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState(null)
+
+  const continueWithGithub = async () => {
+    setNotice(null)
+    if (!hasSupabaseConfig) { setNotice({ type: 'error', text: 'Supabase is not connected yet. Configure your project URL and anon key first.' }); return }
+    setBusy(true)
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({ provider: 'github', options: { redirectTo: window.location.origin } })
+      if (error) throw error
+    } catch (error) { setNotice({ type: 'error', text: error.message || 'GitHub sign-in could not be started.' }) }
+    finally { setBusy(false) }
+  }
 
   const submit = async (event) => {
     event.preventDefault()
@@ -238,10 +254,12 @@ function AuthPage({ onBack, onSuccess }) {
   return <main className="auth-screen">
     <div className="auth-top"><button className="back-link" onClick={onBack}><ArrowLeft size={15}/> BACK TO BRIEFING</button><Brand/><StatusLine>ENCRYPTED SESSION</StatusLine></div>
     <div className="auth-layout">
-      <aside className="auth-aside tactical-grid"><span className="eyebrow"><span className="eyebrow-rule"/>VAULT ACCESS</span><h1 className="display auth-title">ENTER<br/>CONTROL ROOM.</h1><p>Your conversations are the source material. Your rules are the operating system. Keep both in one place.</p><div className="auth-aside-meta"><span>BR-SECURE / 01</span><span>PERSONAL AI MEMORY</span></div></aside>
+      <aside className="auth-aside tactical-grid"><span className="eyebrow"><span className="eyebrow-rule"/>VAULT ACCESS</span><h1 className="display auth-title">ENTER<br/>CONTROL ROOM.</h1><p>Your conversations are the source material. Your rules are the operating system. Keep both in one place.</p><div className="auth-aside-meta"><span>VV-SECURE / 01</span><span>PERSONAL AI MEMORY</span></div></aside>
       <section className="auth-form-area">
         <div className="auth-form-head"><span className="eyebrow">IDENTITY CHECK</span><h2 className="display">{mode === 'signin' ? 'WELCOME BACK.' : 'BUILD YOUR VAULT.'}</h2><p>{mode === 'signin' ? 'Enter your credentials to restore your working context.' : 'Create an account to start preserving your AI work.'}</p></div>
         <div className="auth-tabs"><button className={mode === 'signin' ? 'active' : ''} onClick={() => { setMode('signin'); setNotice(null) }}>SIGN IN</button><button className={mode === 'signup' ? 'active' : ''} onClick={() => { setMode('signup'); setNotice(null) }}>CREATE ACCOUNT</button></div>
+        <Button variant="ghost" className="github-auth-btn" type="button" onClick={continueWithGithub} disabled={busy}><Code2 size={17}/> CONTINUE WITH GITHUB</Button>
+        <div className="auth-divider"><span>OR CONTINUE WITH EMAIL</span></div>
         <form className="auth-form" onSubmit={submit}>
           {mode === 'signup' && <label className="field-label">DISPLAY NAME<input className="field-input" value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="How should we address you?" autoComplete="name" required/></label>}
           <label className="field-label">EMAIL ADDRESS<input className="field-input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" required/></label>
@@ -253,11 +271,12 @@ function AuthPage({ onBack, onSuccess }) {
         {!hasSupabaseConfig && <p className="config-hint">SETUP REQUIRED · Add <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> to your environment file.</p>}
       </section>
     </div>
-    <footer className="auth-footer"><span>BRAINRELAY / ACCESS NODE</span><span>CONTROL IS YOURS</span></footer>
+    <footer className="auth-footer"><span>VIBEVAULT / ACCESS NODE</span><span>CONTROL IS YOURS</span></footer>
   </main>
 }
 
-function Dashboard({ session, onSignOut }) {
+function Dashboard({ session, initialPlan, onSignOut }) {
+  const location = useLocation()
   const user = session.user
   const [profile, setProfile] = useState(null)
   const [projects, setProjects] = useState([])
@@ -276,6 +295,9 @@ function Dashboard({ session, onSignOut }) {
   const [detail, setDetail] = useState(null)
   const [detailTab, setDetailTab] = useState('raw')
   const [mobilePanel, setMobilePanel] = useState('vault')
+  const [bundleModes, setBundleModes] = useState({})
+  const [cleaningId, setCleaningId] = useState(null)
+  const [refreshingPlan, setRefreshingPlan] = useState(false)
 
   const activeProject = projects.find(p => p.id === activeProjectId) || projects[0] || null
   const isPro = Boolean(profile?.is_pro)
@@ -287,6 +309,10 @@ function Dashboard({ session, onSignOut }) {
     return sameProject && sameSource
   }), [conversations, activeProject, sourceFilter])
   const selectedConversations = conversations.filter(c => selectedIds.includes(c.id))
+
+  useEffect(() => {
+    if (initialPlan) setModal({ type: 'upgrade', plan: initialPlan })
+  }, [initialPlan])
 
   useEffect(() => {
     let mounted = true
@@ -340,9 +366,44 @@ function Dashboard({ session, onSignOut }) {
 
   function showToast(message) { setToast(message) }
 
+  async function refreshPlanStatus() {
+    setRefreshingPlan(true)
+    try {
+      const { data, error } = await supabase.from('profiles').select('is_pro').eq('id', user.id).single()
+      if (error) throw error
+      setProfile(current => ({ ...(current || {}), is_pro: data.is_pro }))
+      showToast(data.is_pro ? 'Pro plan confirmed.' : 'Starter plan is active.')
+    } catch (error) { showToast(error.message || 'Could not refresh plan status.') }
+    finally { setRefreshingPlan(false) }
+  }
+
+  function requestCreateProject() {
+    if (!isPro && projects.length >= 1) {
+      setModal({ type: 'upgrade', plan: 'pro', message: 'Starter Vault limit reached (1/1 Project). Unlock unlimited projects & convos.' })
+      return
+    }
+    setModal({ type: 'project' })
+  }
+
+  function requestSaveConversation() {
+    if (!isPro && conversations.length >= 3) {
+      setModal({ type: 'upgrade', plan: 'pro', message: 'Starter Vault limit reached (3/3 Convos). Upgrade to keep vaulting your AI brain.' })
+      return
+    }
+    setModal({ type: 'conversation' })
+  }
+
+  function requestCreateSkill() {
+    if (!isPro) {
+      setModal({ type: 'upgrade', plan: 'pro', message: 'Unlimited custom AGENT.md roles are included with Pro.' })
+      return
+    }
+    setModal({ type: 'skill' })
+  }
+
   async function createProject(values) {
-    if (!isPro && projects.length >= 2) {
-      showToast('Starter Vault supports 2 projects. Pro billing must be configured before an upgrade can be purchased.')
+    if (!isPro && projects.length >= 1) {
+      setModal({ type: 'upgrade', plan: 'pro', message: 'Starter Vault limit reached (1/1 Project). Unlock unlimited projects & convos.' })
       return
     }
     const payload = { user_id: user.id, title: values.title.trim(), description: values.description.trim(), project_rules: values.project_rules.trim(), tags: values.tags.split(',').map(s => s.trim()).filter(Boolean) }
@@ -352,6 +413,10 @@ function Dashboard({ session, onSignOut }) {
   }
 
   async function saveConversation(values) {
+    if (!isPro && conversations.length >= 3) {
+      setModal({ type: 'upgrade', plan: 'pro', message: 'Starter Vault limit reached (3/3 Convos). Upgrade to keep vaulting your AI brain.' })
+      return
+    }
     if (!activeProject) throw new Error('Create or select a project before saving a conversation.')
     const payload = { project_id: activeProject.id, user_id: user.id, title: values.title.trim(), source_ai: values.source_ai, raw_content: values.raw_content, cleaned_spec: '', tags: values.tags.split(',').map(s => s.trim()).filter(Boolean), image_urls: [] }
     const { data, error } = await supabase.from('conversations').insert(payload).select().single()
@@ -361,7 +426,7 @@ function Dashboard({ session, onSignOut }) {
 
   async function createSkill(values) {
     if (!isPro) {
-      showToast('Custom role skills are a Pro feature. Configure billing before upgrading.')
+      setModal({ type: 'upgrade', plan: 'pro', message: 'Unlimited custom AGENT.md roles are included with Pro.' })
       return
     }
     const payload = { user_id: user.id, role_name: values.role_name.trim(), instructions: values.instructions.trim(), is_default: false }
@@ -379,21 +444,35 @@ function Dashboard({ session, onSignOut }) {
   function makeAgentMd() {
     const projectRules = activeProject?.project_rules?.trim() || 'No project-specific rules have been added yet.'
     const style = profile?.global_style?.trim() || 'No global style preferences have been set.'
-    const convoContext = selectedConversations.map((conversation, index) => `## Conversation ${index + 1}: ${conversation.title}\nSource: ${conversation.source_ai}\nTags: ${(conversation.tags || []).join(', ') || 'None'}\n\n${conversation.raw_content}`).join('\n\n---\n\n')
+    const convoContext = selectedConversations.map((conversation, index) => {
+      const useClean = isPro && bundleModes[conversation.id] === 'clean' && conversation.cleaned_spec
+      const sourceLabel = useClean ? 'CLEANED SPEC' : 'RAW THREAD'
+      const body = useClean ? conversation.cleaned_spec : conversation.raw_content
+      return `## Conversation ${index + 1}: ${conversation.title}\\nSource: ${conversation.source_ai}\\nTags: ${(conversation.tags || []).join(', ') || 'None'}\\nContext mode: ${sourceLabel}\\n\\n${body}`
+    }).join('\\n\\n---\\n\\n')
     return `# AGENT.md — ${activeProject?.title || 'Untitled Project'}\n\n## HANDOFF TARGET\n${targetAi}\n\n## ASSIGNED ROLE\n${activeSkill?.role_name || 'General Assistant'}\n\n## ROLE INSTRUCTIONS\n${activeSkill?.instructions || 'Act as a careful, context-aware collaborator. Ask before making assumptions.'}\n\n## GLOBAL WORKING STYLE\n${style}\n\n## PROJECT DESCRIPTION\n${activeProject?.description || 'No project description supplied.'}\n\n## PROJECT RULES\n${projectRules}\n\n## RAW SOURCE MATERIAL\n${convoContext || 'No raw conversations selected. Do not invent missing context.'}\n\n## MANDATORY 3-POINT CONFIRMATION — DO THIS BEFORE WRITING CODE\n1. **Confirm the role:** State that you understand and accept the assigned role: ${activeSkill?.role_name || 'General Assistant'}.\n2. **Prove context transfer:** Summarize the supplied raw conversations and identify the user's actual goals, constraints and decisions without silently rewriting the source material.\n3. **Expose uncertainty:** List assumptions, contradictions and missing information. Ask focused questions where needed. Do not write or modify code until the user approves this confirmation.\n\n---\nEnd of handoff. Preserve the user's original intent and ask before changing established decisions.\n`
   }
 
-  async function saveHandoff(copyToClipboard = true) {
+  async function saveHandoff(copyToClipboard = true, targetOverride = targetAi) {
     if (!activeProject) { showToast('Create a project before generating a handoff.'); return }
     if (!activeSkill) { showToast('Create or select an AGENT.md role first.'); return }
     const content = makeAgentMd()
     try {
       if (copyToClipboard) await navigator.clipboard.writeText(content)
-      const { data, error } = await supabase.from('handoffs').insert({ project_id: activeProject.id, user_id: user.id, target_ai: targetAi, role_name: activeSkill.role_name, generated_agent_md: content, confirmed: false }).select().single()
+      const { data, error } = await supabase.from('handoffs').insert({ project_id: activeProject.id, user_id: user.id, target_ai: targetOverride, role_name: activeSkill.role_name, generated_agent_md: content, confirmed: false }).select().single()
       if (error) throw error
       setHandoffs(current => [data, ...current])
       showToast(copyToClipboard ? 'Handoff copied and logged. The receiving AI must confirm before coding.' : 'Handoff logged.')
     } catch (error) { showToast(error.message || 'Could not save this handoff.') }
+  }
+
+  async function openInAI(target) {
+    if (!activeProject || !activeSkill) { showToast('Select a project and role before launching an AI handoff.'); return }
+    const content = makeAgentMd()
+    const encoded = encodeURIComponent(content)
+    const url = target === 'Claude' ? `https://claude.ai/new?q=${encoded}` : `https://chatgpt.com/?q=${encoded}`
+    window.open(url, '_blank', 'noopener,noreferrer')
+    await saveHandoff(false, target)
   }
 
   async function downloadHandoff() {
@@ -428,7 +507,8 @@ function Dashboard({ session, onSignOut }) {
     <div className="workspace-grid">
       <aside className={`left-rail workspace-panel ${mobilePanel === 'projects' ? 'mobile-active' : ''}`}>
         <div className="panel-heading"><span className="eyebrow">WORKSPACE</span><span className="panel-count">{String(projects.length).padStart(2, '0')}</span></div>
-        <Button className="new-project-btn" onClick={() => setModal({ type: 'project' })}><Plus size={16}/> NEW PROJECT</Button>
+        <Button className="new-project-btn" onClick={requestCreateProject}><Plus size={16}/> NEW PROJECT</Button>
+        {!isPro && <div className="usage-meter"><div><span>STARTER USAGE</span><strong>{projects.length}/1 PROJECT · {conversations.length}/3 CONVOS</strong></div><Button variant="ghost" onClick={() => setModal({ type: 'upgrade', plan: 'pro' })}>UPGRADE</Button></div>}
         <label className="search-field"><Search size={15}/><input value={projectSearch} onChange={e => setProjectSearch(e.target.value)} placeholder="Search projects" /></label>
         <div className="project-list">{filteredProjects.map(project => <button key={project.id} className={`project-item ${activeProject?.id === project.id ? 'selected' : ''}`} onClick={() => { setActiveProjectId(project.id); setSelectedIds([]); setMobilePanel('vault') }}><FolderKanban size={15}/><span>{project.title}</span><ChevronRight size={14}/></button>)}{!projects.length && <div className="empty-small">No projects yet. Create one to start your vault.</div>}</div>
         <div className="rail-stats"><div><span>CONVOS SAVED</span><strong>{String(conversations.length).padStart(2, '0')}</strong></div><div><span>HANDOFFS</span><strong>{String(handoffs.length).padStart(2, '0')}</strong></div></div>
@@ -436,11 +516,11 @@ function Dashboard({ session, onSignOut }) {
       </aside>
 
       <section className={`center-vault workspace-panel ${mobilePanel === 'vault' ? 'mobile-active' : ''}`}>
-        <div className="vault-title-row"><div><span className="eyebrow">RAW CONVERSATION VAULT</span><h1 className="display workspace-title">PRESERVE THE SIGNAL.</h1><p className="workspace-subtitle">{activeProject ? activeProject.description || 'Store the exact thinking behind this project.' : 'Create a project, then save your first raw conversation.'}</p></div><Button onClick={() => setModal({ type: 'conversation' })} disabled={!activeProject}><Plus size={16}/> SAVE RAW CONVO</Button></div>
+        <div className="vault-title-row"><div><span className="eyebrow">RAW CONVERSATION VAULT</span><h1 className="display workspace-title">PRESERVE THE SIGNAL.</h1><p className="workspace-subtitle">{activeProject ? activeProject.description || 'Store the exact thinking behind this project.' : 'Create a project, then save your first raw conversation.'}</p></div><Button onClick={requestSaveConversation} disabled={!activeProject}><Plus size={16}/> SAVE RAW CONVO</Button></div>
         <div className="source-filter-row"><div className="source-filters">{SOURCE_AIS.map(source => <button key={source} className={`filter-chip ${sourceFilter === source ? 'active' : ''}`} onClick={() => setSourceFilter(source)}>{source}</button>)}</div><span className="result-count">{visibleConversations.length} RECORDS</span></div>
         <div className="conversation-list">
           {busy && <div className="empty-state"><span className="loading-line"/><p>SYNCING YOUR VAULT...</p></div>}
-          {!busy && !projects.length && <div className="empty-state"><FolderKanban size={25}/><h3 className="display">NO PROJECTS IN THE VAULT.</h3><p>Create your first project to give your conversations a home.</p><Button onClick={() => setModal({ type: 'project' })}><Plus size={15}/> NEW PROJECT</Button></div>}
+          {!busy && !projects.length && <div className="empty-state"><FolderKanban size={25}/><h3 className="display">NO PROJECTS IN THE VAULT.</h3><p>Create your first project to give your conversations a home.</p><Button onClick={requestCreateProject}><Plus size={15}/> NEW PROJECT</Button></div>}
           {!busy && projects.length > 0 && visibleConversations.map(conversation => <article key={conversation.id} className="conversation-card">
             <label className="select-record"><input type="checkbox" checked={selectedIds.includes(conversation.id)} onChange={() => toggleConversation(conversation.id)} aria-label={`Bundle ${conversation.title}`}/><span/></label>
             <button className="conversation-main" onClick={() => { setDetail(conversation); setDetailTab('raw') }}><div className="conversation-meta"><span className="source-badge">{conversation.source_ai}</span><span>{formatDate(conversation.created_at)}</span></div><h3>{conversation.title}</h3><p>{(conversation.raw_content || '').slice(0, 160).replace(/\s+/g, ' ')}{(conversation.raw_content || '').length > 160 ? '…' : ''}</p><div className="tag-row">{(conversation.tags || []).map(tag => <span key={tag} className="tag-pill">{tag}</span>)}</div></button>
@@ -456,13 +536,13 @@ function Dashboard({ session, onSignOut }) {
         <h2 className="display handoff-title">COMPILE THE<br/>NEXT MOVE.</h2>
         <label className="field-label compact-label">TARGET AI<select className="field-input select-input" value={targetAi} onChange={e => setTargetAi(e.target.value)}>{TARGET_AIS.map(ai => <option key={ai}>{ai}</option>)}</select></label>
         <div className="field-label compact-label">ASSIGNED ROLE</div>
-        <div className="skill-select-row"><select className="field-input select-input" value={activeSkillId} onChange={e => setActiveSkillId(e.target.value)}><option value="">Select a role</option>{skills.map(skill => <option key={skill.id} value={skill.id}>{skill.role_name}</option>)}</select><button className="square-add" onClick={() => setModal({ type: 'skill' })} aria-label="Create skill"><Plus size={17}/></button></div>
-        <div className="bundle-head"><span className="field-label">BUNDLE RAW RECORDS</span><span>{selectedIds.length} SELECTED</span></div>
-        <div className="bundle-list">{visibleConversations.map(conversation => <label key={conversation.id} className="bundle-item"><input type="checkbox" checked={selectedIds.includes(conversation.id)} onChange={() => toggleConversation(conversation.id)}/><span>{conversation.title}</span></label>)}{!visibleConversations.length && <span className="empty-small">No conversations available for this project.</span>}</div>
+        <div className="skill-select-row"><select className="field-input select-input" value={activeSkillId} onChange={e => setActiveSkillId(e.target.value)}><option value="">Select a role</option>{skills.map(skill => <option key={skill.id} value={skill.id}>{skill.role_name}</option>)}</select><button className="square-add" onClick={requestCreateSkill} aria-label="Create skill"><Plus size={17}/></button></div>
+        <div className="bundle-head"><span className="field-label">BUNDLE CONTEXT RECORDS</span><span>{selectedIds.length} SELECTED</span></div>
+        <div className="bundle-list">{visibleConversations.map(conversation => <div key={conversation.id} className="bundle-item-row"><label className="bundle-item"><input type="checkbox" checked={selectedIds.includes(conversation.id)} onChange={() => toggleConversation(conversation.id)}/><span>{conversation.title}</span></label>{selectedIds.includes(conversation.id) && <select className="bundle-mode-select" aria-label={`Context mode for ${conversation.title}`} value={bundleModes[conversation.id] || 'raw'} disabled={!isPro} onChange={e => setBundleModes(current => ({ ...current, [conversation.id]: e.target.value }))}><option value="raw">RAW THREAD</option><option value="clean" disabled={!conversation.cleaned_spec}>CLEANED SPEC</option></select>}</div>)}{!visibleConversations.length && <span className="empty-small">No conversations available for this project.</span>}</div>
         <div className="compiled-preview-head"><span className="field-label">LIVE AGENT.MD PREVIEW</span><span className="live-tag"><span className="status-pulse"/>LIVE</span></div>
         <pre className="compiled-preview">{makeAgentMd()}</pre>
         <div className="confirmation-note"><ShieldCheck size={15}/><span>Every handoff includes the required 3-point confirmation before the receiving AI writes code.</span></div>
-        <div className="handoff-actions"><Button onClick={() => saveHandoff(true)} disabled={!activeProject || !activeSkill}><Clipboard size={15}/> COPY HANDOFF</Button><Button variant="ghost" onClick={downloadHandoff} disabled={!activeProject || !activeSkill}><Download size={15}/> DOWNLOAD .MD</Button></div>
+        <div className="handoff-actions"><Button onClick={() => saveHandoff(true)} disabled={!activeProject || !activeSkill}><Clipboard size={15}/> COPY HANDOFF</Button><Button variant="ghost" onClick={downloadHandoff} disabled={!activeProject || !activeSkill}><Download size={15}/> DOWNLOAD .MD</Button><Button variant="ghost" onClick={() => openInAI('Claude')} disabled={!activeProject || !activeSkill}>OPEN IN CLAUDE ↗</Button><Button variant="ghost" onClick={() => openInAI('ChatGPT')} disabled={!activeProject || !activeSkill}>OPEN IN CHATGPT ↗</Button></div>
         <div className="handoff-history"><div className="history-head"><span className="field-label">RECENT HANDOFFS</span><span>{handoffs.length}</span></div>{handoffs.slice(0, 4).map(handoff => <div className="history-item" key={handoff.id}><span><strong>{handoff.target_ai}</strong><small>{handoff.role_name} · {formatDate(handoff.created_at)}</small></span>{handoff.confirmed ? <span className="confirmed-label"><CheckCircle2 size={13}/> CONFIRMED</span> : <button onClick={() => markHandoffConfirmed(handoff.id)} className="mark-confirmed">MARK CONFIRMED</button>}</div>)}</div>
       </aside>
     </div>
@@ -470,7 +550,21 @@ function Dashboard({ session, onSignOut }) {
     {detail && <Modal title={detail.title} eyebrow={`${detail.source_ai} / CONVERSATION RECORD`} onClose={() => setDetail(null)} wide>
       <div className="detail-meta"><span>SAVED {formatDate(detail.created_at)}</span><span>{(detail.raw_content || '').length.toLocaleString()} CHARACTERS</span></div>
       <div className="detail-tabs"><button className={detailTab === 'raw' ? 'active' : ''} onClick={() => setDetailTab('raw')}>RAW UNEDITED THREAD</button><button className={detailTab === 'clean' ? 'active' : ''} onClick={() => setDetailTab('clean')}>AI CLEANED SPEC (PRO)</button></div>
-      {detailTab === 'raw' ? <pre className="detail-content">{detail.raw_content}</pre> : isPro ? <pre className="detail-content">{detail.cleaned_spec || 'No cleaned spec has been generated for this record yet. Connect an AI cleaning service to populate this field.'}</pre> : <div className="pro-prompt"><Sparkles size={20}/><h3 className="display">STRUCTURED CLARITY. PRO ACCESS.</h3><p>AI Smart Spec Cleaner turns unstructured raw ideas into a clear, reusable project specification.</p><Button onClick={() => showToast('Billing checkout must be configured before Pro upgrades can be processed.')}>EXPLORE PRO <ArrowUpRight size={14}/></Button></div>}
+      {detailTab === 'raw' ? <pre className="detail-content">{detail.raw_content}</pre> : isPro ? <div className="clean-spec-panel">{detail.cleaned_spec ? <pre className="detail-content">{detail.cleaned_spec}</pre> : <div className="pro-prompt"><Sparkles size={20}/><h3 className="display">CLEAN THE SIGNAL.</h3><p>Generate a structured specification while preserving the intent and decisions in your original thread.</p></div>}<Button disabled={cleaningId === detail.id} onClick={async () => {
+        setCleaningId(detail.id)
+        try {
+          const { data, error } = await supabase.functions.invoke('clean-spec', { body: { raw_content: detail.raw_content, conversation_id: detail.id } })
+          if (error) throw error
+          const cleaned = data?.cleaned_spec || data?.cleanedSpec || data?.spec
+          if (!cleaned) throw new Error('The cleaner returned no cleaned_spec value.')
+          const { data: saved, error: saveError } = await supabase.from('conversations').update({ cleaned_spec: cleaned }).eq('id', detail.id).eq('user_id', user.id).select().single()
+          if (saveError) throw saveError
+          setConversations(current => current.map(item => item.id === saved.id ? saved : item))
+          setDetail(saved)
+          showToast('Clean spec generated and saved.')
+        } catch (error) { showToast(error.message || 'Could not generate the clean spec.') }
+        finally { setCleaningId(null) }
+      }}><Sparkles size={15}/>{cleaningId === detail.id ? 'GENERATING...' : 'GENERATE CLEAN SPEC'}</Button></div> : <div className="pro-prompt locked-prompt"><Sparkles size={20}/><h3 className="display">STRUCTURED CLARITY. PRO ACCESS.</h3><p>AI Smart Spec Cleaner turns unstructured raw ideas into a clear, reusable project specification.</p><Button onClick={() => setModal({ type: 'upgrade', plan: 'pro' })}>UPGRADE TO PRO <ArrowUpRight size={14}/></Button></div>}
       <div className="modal-actions"><Button variant="ghost" onClick={() => navigator.clipboard?.writeText(detail.raw_content || '').then(() => showToast('Raw thread copied.'))}><Clipboard size={15}/> COPY RAW THREAD</Button><Button onClick={() => setDetail(null)}>CLOSE RECORD</Button></div>
     </Modal>}
 
@@ -478,6 +572,7 @@ function Dashboard({ session, onSignOut }) {
     {modal?.type === 'conversation' && <ConversationModal onClose={() => setModal(null)} onSave={saveConversation}/>}
     {modal?.type === 'skill' && <SkillModal onClose={() => setModal(null)} onSave={createSkill}/>}
     {modal?.type === 'style' && <StyleModal initialValue={profile?.global_style || ''} onClose={() => setModal(null)} onSave={updateGlobalStyle}/>}
+    {modal?.type === 'upgrade' && <UpgradeModal plan={modal.plan || 'pro'} message={modal.message} email={user.email} isPro={isPro} onClose={() => setModal(null)} onRefresh={refreshPlanStatus} refreshing={refreshingPlan}/>}
     {toast && <div className="toast" role="status"><CheckCircle2 size={16}/>{toast}</div>}
   </main>
 }
@@ -493,7 +588,7 @@ function ConversationModal({ onClose, onSave }) {
   const [values, setValues] = useState({ title: '', source_ai: 'ChatGPT', raw_content: '', tags: '' })
   const [busy, setBusy] = useState(false)
   const submit = async (e) => { e.preventDefault(); setBusy(true); try { await onSave(values) } catch (error) { alert(error.message) } finally { setBusy(false) } }
-  return <Modal title="SAVE RAW CONVERSATION" eyebrow="PRESERVE ORIGINAL CONTEXT" onClose={onClose} wide><form className="modal-form" onSubmit={submit}><div className="form-two-col"><label className="field-label">RECORD TITLE<input className="field-input" required value={values.title} onChange={e => setValues({ ...values, title: e.target.value })} placeholder="Describe this conversation"/></label><label className="field-label">SOURCE AI<select className="field-input" value={values.source_ai} onChange={e => setValues({ ...values, source_ai: e.target.value })}>{SOURCE_AIS.filter(x => x !== 'ALL').map(ai => <option key={ai} value={ai.charAt(0) + ai.slice(1).toLowerCase()}>{ai}</option>)}</select></label></div><label className="field-label">RAW THREAD<textarea className="field-input field-textarea raw-input" required value={values.raw_content} onChange={e => setValues({ ...values, raw_content: e.target.value })} placeholder="Paste the exact conversation here. BrainRelay stores this text without rewriting it."/></label><label className="field-label">TAGS<input className="field-input" value={values.tags} onChange={e => setValues({ ...values, tags: e.target.value })} placeholder="architecture, bug-fix, product-thinking"/></label><div className="raw-integrity"><ShieldCheck size={15}/> The original text is saved as supplied. No automatic cleanup is applied.</div><div className="modal-actions"><Button variant="ghost" type="button" onClick={onClose}>CANCEL</Button><Button disabled={busy}>{busy ? 'SAVING...' : 'SAVE RAW THREAD'}</Button></div></form></Modal>
+  return <Modal title="SAVE RAW CONVERSATION" eyebrow="PRESERVE ORIGINAL CONTEXT" onClose={onClose} wide><form className="modal-form" onSubmit={submit}><div className="form-two-col"><label className="field-label">RECORD TITLE<input className="field-input" required value={values.title} onChange={e => setValues({ ...values, title: e.target.value })} placeholder="Describe this conversation"/></label><label className="field-label">SOURCE AI<select className="field-input" value={values.source_ai} onChange={e => setValues({ ...values, source_ai: e.target.value })}>{SOURCE_AIS.filter(x => x !== 'ALL').map(ai => <option key={ai} value={ai.charAt(0) + ai.slice(1).toLowerCase()}>{ai}</option>)}</select></label></div><label className="field-label">RAW THREAD<textarea className="field-input field-textarea raw-input" required value={values.raw_content} onChange={e => setValues({ ...values, raw_content: e.target.value })} placeholder="Paste the exact conversation here. VibeVault stores this text without rewriting it."/></label><label className="field-label">TAGS<input className="field-input" value={values.tags} onChange={e => setValues({ ...values, tags: e.target.value })} placeholder="architecture, bug-fix, product-thinking"/></label><div className="raw-integrity"><ShieldCheck size={15}/> The original text is saved as supplied. No automatic cleanup is applied.</div><div className="modal-actions"><Button variant="ghost" type="button" onClick={onClose}>CANCEL</Button><Button disabled={busy}>{busy ? 'SAVING...' : 'SAVE RAW THREAD'}</Button></div></form></Modal>
 }
 
 function SkillModal({ onClose, onSave }) {
