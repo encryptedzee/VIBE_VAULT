@@ -577,6 +577,47 @@ function Dashboard({ session, initialPlan, onSignOut }) {
   </main>
 }
 
+function UpgradeModal({ plan, message, email, isPro, onClose, onRefresh, refreshing }) {
+  const [tab, setTab] = useState('global')
+  const checkoutUrl = plan === 'lifetime' ? LIFETIME_CHECKOUT_URL : PRO_CHECKOUT_URL
+  const price = plan === 'lifetime' ? '125,000 TZS' : '23,000 TZS'
+  const label = plan === 'lifetime' ? 'FOUNDER LIFETIME' : 'PRO VIBE-CODER'
+  const payOnline = () => {
+    if (!checkoutUrl) return
+    const separator = checkoutUrl.includes('?') ? '&' : '?'
+    window.open(`${checkoutUrl}${separator}customer_email=${encodeURIComponent(email || '')}`, '_blank', 'noopener,noreferrer')
+  }
+  return <Modal title="UPGRADE YOUR VAULT" eyebrow="PLAN ACCESS / SECURE CHECKOUT" onClose={onClose} wide>
+    <div className="upgrade-summary">
+      <span className="field-label">SIGNED-IN ACCOUNT</span>
+      <strong>{email}</strong>
+      <span className="upgrade-plan-name">{label} · {plan === 'lifetime' ? '$49 ONE-TIME' : '$9 / MONTH'}</span>
+      {message && <p>{message}</p>}
+      {isPro && <p className="upgrade-status">YOUR PROFILE CURRENTLY REPORTS PRO ACCESS.</p>}
+    </div>
+    <div className="upgrade-tabs">
+      <button className={tab === 'global' ? 'active' : ''} onClick={() => setTab('global')}>GLOBAL CARD / POLAR</button>
+      <button className={tab === 'mpesa' ? 'active' : ''} onClick={() => setTab('mpesa')}>TANZANIA M-PESA (LIPA NAMBA)</button>
+    </div>
+    {tab === 'global' ? <div className="checkout-panel">
+      <span className="field-label">CARD CHECKOUT</span>
+      <p>Continue to the secure payment page for {label}. Your signed-in email will be attached to the checkout link.</p>
+      {checkoutUrl ? <Button block onClick={payOnline}>PAY ONLINE NOW <ArrowUpRight size={15}/></Button> : <div className="notice notice-error"><CircleHelp size={17}/><span>Online checkout is not configured yet. Add {plan === 'lifetime' ? 'VITE_LIFETIME_CHECKOUT_URL' : 'VITE_PRO_CHECKOUT_URL'} to your deployment environment.</span></div>}
+    </div> : <div className="checkout-panel mpesa-panel">
+      <span className="field-label">PAYMENT DETAILS</span>
+      <div className="mpesa-price"><strong>{price}</strong><span>{label}</span></div>
+      <div className="mpesa-detail"><span>LIPA NAMBA</span><strong>{LIPA_NAMBA || 'NOT CONFIGURED'}</strong></div>
+      <div className="mpesa-detail"><span>ACCOUNT NAME</span><strong>{LIPA_NAME || 'NOT CONFIGURED'}</strong></div>
+      <p>Use M-Pesa to pay the amount above. In the payment reference / account field, include your VibeVault account email exactly as shown so the payment can be matched to your account.</p>
+      {!LIPA_NAMBA && <div className="notice notice-error"><CircleHelp size={17}/><span>Set VITE_LIPA_NAMBA and VITE_LIPA_NAME in your deployment environment to publish your payment details.</span></div>}
+    </div>}
+    <div className="upgrade-footer">
+      <Button variant="ghost" onClick={onRefresh} disabled={refreshing}><CheckCircle2 size={15}/>{refreshing ? 'REFRESHING...' : 'REFRESH PLAN STATUS'}</Button>
+      <Button variant="ghost" onClick={onClose}>CLOSE</Button>
+    </div>
+  </Modal>
+}
+
 function ProjectModal({ onClose, onSave }) {
   const [values, setValues] = useState({ title: '', description: '', project_rules: '', tags: '' })
   const [busy, setBusy] = useState(false)
