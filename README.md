@@ -17,6 +17,7 @@
 
 Requirements: Node.js 20.19+ or 22.12+ and npm.
 
+
 ```bash
 npm install
 cp .env.example .env
