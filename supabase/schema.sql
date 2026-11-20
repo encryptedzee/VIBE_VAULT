@@ -188,20 +188,33 @@ create or replace function public.enforce_starter_limits()
 returns trigger language plpgsql security definer set search_path = '' as $$
 declare
   account_is_pro boolean;
-  project_count integer;
+  item_count integer;
 begin
+  -- Serialize inserts per account so simultaneous requests cannot exceed Starter caps.
+  perform pg_advisory_xact_lock(hashtextextended(new.user_id::text, 0));
+
   select coalesce(p.is_pro, false) into account_is_pro
   from public.profiles p where p.id = new.user_id;
 
-  if tg_table_name = 'projects' and not account_is_pro then
-    select count(*) into project_count from public.projects p where p.user_id = new.user_id;
-    if project_count >= 2 then
-      raise exception 'Starter Vault supports up to 2 projects. Upgrade your plan to create more.' using errcode = 'P0001';
+  if coalesce(account_is_pro, false) then
+    return new;
+  end if;
+
+  if tg_table_name = 'projects' then
+    select count(*) into item_count from public.projects p where p.user_id = new.user_id;
+    if item_count >= 1 then
+      raise exception 'Starter Vault limit reached (1/1 Project). Unlock unlimited projects & convos.' using errcode = 'P0001';
     end if;
-  elsif tg_table_name = 'agent_skills' and not account_is_pro and (
-    not new.is_default or new.role_name not in ('Backend Architect', 'UI Designer', 'Image Prompt Engineer')
-  ) then
-    raise exception 'Custom AGENT.md skills require a Pro plan.' using errcode = 'P0001';
+  elsif tg_table_name = 'conversations' then
+    select count(*) into item_count from public.conversations c where c.user_id = new.user_id;
+    if item_count >= 3 then
+      raise exception 'Starter Vault limit reached (3/3 Convos). Upgrade to keep vaulting your AI brain.' using errcode = 'P0001';
+    end if;
+  elsif tg_table_name = 'agent_skills' then
+    select count(*) into item_count from public.agent_skills a where a.user_id = new.user_id;
+    if item_count >= 3 or not new.is_default or new.role_name not in ('Backend Architect', 'UI Designer', 'Image Prompt Engineer') then
+      raise exception 'Starter Vault includes only the 3 built-in AGENT.md skills. Upgrade for custom roles.' using errcode = 'P0001';
+    end if;
   end if;
   return new;
 end;
@@ -212,4 +225,7 @@ create trigger projects_enforce_starter_limits before insert on public.projects
 for each row execute function public.enforce_starter_limits();
 drop trigger if exists agent_skills_enforce_starter_limits on public.agent_skills;
 create trigger agent_skills_enforce_starter_limits before insert on public.agent_skills
+for each row execute function public.enforce_starter_limits();
+drop trigger if exists conversations_enforce_starter_limits on public.conversations;
+create trigger conversations_enforce_starter_limits before insert on public.conversations
 for each row execute function public.enforce_starter_limits();
