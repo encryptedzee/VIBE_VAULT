@@ -1,0 +1,25 @@
+name: Extract VibeVault source
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'vibevault-ready.txt'
+permissions:
+  contents: write
+jobs:
+  extract-source:
+    if: github.event.head_commit.message == 'Trigger VibeVault source extraction'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract project files
+        shell: bash
+        run: |
+          cat .vibevault/chunk_* | base64 --decode > /tmp/vibevault-source.tar.xz
+          tar -xJf /tmp/vibevault-source.tar.xz -C .
+          rm -rf .vibevault vibevault-ready.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Extract VibeVault application source"
+          git push
