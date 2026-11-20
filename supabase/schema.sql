@@ -1,4 +1,4 @@
--- BrainRelay / VibeVault schema
+-- VibeVault schema
 -- Run in Supabase SQL Editor as a project owner.
 
 create extension if not exists pgcrypto;
