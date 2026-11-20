@@ -104,7 +104,7 @@ Deno.serve(async (req: Request) => {
         temperature: 0.2,
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Clean this exact saved conversation into a specification. Preserve meaning and do not add facts.\\n\\n<RAW_CONVERSATION>\\n${rawContent}\\n</RAW_CONVERSATION>` },
+          { role: "user", content: `Clean this exact saved conversation into a specification. Preserve meaning and do not add facts.\n\n<RAW_CONVERSATION>\n${rawContent}\n</RAW_CONVERSATION>` },
         ],
       }),
     });
