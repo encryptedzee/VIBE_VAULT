@@ -525,7 +525,7 @@ function Dashboard({ session, initialPlan, onSignOut }) {
             <button className="conversation-main" onClick={() => { setDetail(conversation); setDetailTab('raw') }}><div className="conversation-meta"><span className="source-badge">{conversation.source_ai}</span><span>{formatDate(conversation.created_at)}</span></div><h3>{conversation.title}</h3><p>{(conversation.raw_content || '').slice(0, 160).replace(/\s+/g, ' ')}{(conversation.raw_content || '').length > 160 ? '…' : ''}</p><div className="tag-row">{(conversation.tags || []).map(tag => <span key={tag} className="tag-pill">{tag}</span>)}</div></button>
             <button className="open-record" onClick={() => { setDetail(conversation); setDetailTab('raw') }} aria-label="Open conversation"><ArrowUpRight size={16}/></button>
           </article>)}
-          {!busy && projects.length > 0 && !visibleConversations.length && <div className="empty-state"><FileText size={24}/><h3 className="display">NO MATCHING CONVERSATIONS.</h3><p>Save a raw conversation or change the source filter.</p><Button onClick={() => setModal({ type: 'conversation' })}><Plus size={15}/> SAVE RAW CONVO</Button></div>}
+          {!busy && projects.length > 0 && !visibleConversations.length && <div className="empty-state"><FileText size={24}/><h3 className="display">NO MATCHING CONVERSATIONS.</h3><p>Save a raw conversation or change the source filter.</p><Button onClick={requestSaveConversation}><Plus size={15}/> SAVE RAW CONVO</Button></div>}
         </div>
         <div className="vault-footnote"><span><ShieldCheck size={14}/> RAW SOURCE PRESERVATION</span><span>SELECTED FOR HANDOFF: {selectedIds.length}</span></div>
       </section>
