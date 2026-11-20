@@ -58,9 +58,16 @@ supabase.functions.invoke('clean-spec', {
 })
 ```
 
-The function must authenticate the caller, verify ownership of `conversation_id`, and return JSON containing `cleaned_spec` (a string). The client persists that result to the same conversation row. Keep the raw source immutable; the cleaner should never overwrite `raw_content`.
+The function in `supabase/functions/clean-spec/index.ts` authenticates the caller, verifies Pro entitlement, confirms that the conversation belongs to the caller and that the submitted raw text matches the saved original, then returns JSON containing `cleaned_spec`. It uses an OpenAI-compatible Chat Completions endpoint configured through Edge Function secrets. The client persists the returned spec to the same conversation row; the function never overwrites `raw_content`.
 
-Deploy and configure the `clean-spec` Edge Function and its model-provider secrets separately. This repository invokes the function but does not include a model provider key or a deployed Edge Function implementation.
+Deploy it with the Supabase CLI:
+
+```bash
+supabase functions deploy clean-spec
+supabase secrets set AI_API_KEY=YOUR_PROVIDER_KEY AI_API_URL=https://api.openai.com/v1/chat/completions AI_MODEL=gpt-4o-mini
+```
+
+The `AI_API_URL` and `AI_MODEL` settings can point to another OpenAI-compatible provider and model. Keep provider credentials in Supabase Function Secrets, never in browser `VITE_` variables.
 
 ## Billing and entitlement lifecycle
 
