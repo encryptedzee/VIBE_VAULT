@@ -429,3 +429,5 @@ button:disabled { cursor: not-allowed !important; opacity: .42; transform: none 
   .upgrade-footer .btn-ghost { width: 100%; }
   .handoff-actions { grid-template-columns: 1fr; }
 }
+
+.splash-monogram { display: grid; width: 54px; height: 54px; place-items: center; border: 1px solid rgba(90,216,255,.55); border-radius: 12px; background: rgba(30,91,255,.12); color: #fff; font-family: var(--font-display); font-size: 28px; font-weight: 800; letter-spacing: -.04em; }
