@@ -229,14 +229,16 @@ function AuthPage({ onBack, onSuccess, pendingPlan }) {
 
   const continueWithGithub = async () => {
     setNotice(null)
-    if (pendingPlan) sessionStorage.setItem('vibevault-pending-upgrade', pendingPlan)
     if (!hasSupabaseConfig) { setNotice({ type: 'error', text: 'Supabase is not connected yet. Configure your project URL and anon key first.' }); return }
+    if (pendingPlan) sessionStorage.setItem('vibevault-pending-upgrade', pendingPlan)
     setBusy(true)
     try {
       const { error } = await supabase.auth.signInWithOAuth({ provider: 'github', options: { redirectTo: window.location.origin } })
       if (error) throw error
-    } catch (error) { setNotice({ type: 'error', text: error.message || 'GitHub sign-in could not be started.' }) }
-    finally { setBusy(false) }
+    } catch (error) {
+      sessionStorage.removeItem('vibevault-pending-upgrade')
+      setNotice({ type: 'error', text: error.message || 'GitHub sign-in could not be started.' })
+    } finally { setBusy(false) }
   }
 
   const submit = async (event) => {
