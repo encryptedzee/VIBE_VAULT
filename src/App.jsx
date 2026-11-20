@@ -122,6 +122,7 @@ function Splash({ onSkip }) {
     <button className="splash-skip" onClick={onSkip}>SKIP <ArrowUpRight size={14}/></button>
     <div className="splash-center">
       <div className="splash-pulse" />
+      <span className="splash-monogram">VV</span>
       <span className="eyebrow">INITIALIZING NEURAL VAULT</span>
       <h1 className="display splash-title">VIBEVAULT</h1>
       <div className="splash-progress"><span /></div>
