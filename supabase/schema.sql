@@ -79,8 +79,6 @@ alter table public.profiles add column if not exists updated_at timestamptz not 
 alter table public.projects add column if not exists updated_at timestamptz not null default now();
 alter table public.conversations add column if not exists updated_at timestamptz not null default now();
 alter table public.agent_skills add column if not exists updated_at timestamptz not null default now();
-alter table public.capture_inbox add column if not exists updated_at timestamptz not null default now();
-alter table public.project_decisions add column if not exists updated_at timestamptz not null default now();
 
 -- Keep updated_at current on editable records.
 create or replace function public.set_updated_at()
