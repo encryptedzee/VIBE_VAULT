@@ -842,6 +842,13 @@ function Dashboard({ session, initialPlan, onSignOut }) {
     const projectRules = activeProject?.project_rules?.trim() || 'No project-specific rules have been added yet.'
     const style = profile?.global_style?.trim() || 'No global style preferences have been set.'
     const providerRole = providerPreferences.providers?.[targetOverride]?.role || 'No provider-specific role preference set.'
+    const onboardingProfile = providerPreferences.profile || {}
+    const agentBehaviour = onboardingProfile.collaboration === 'guided'
+      ? 'Guide the user step by step, explain the plan and check before moving on.'
+      : onboardingProfile.collaboration === 'proactive'
+        ? 'Take initiative on clearly defined tasks, state assumptions and surface decisions that need user approval.'
+        : 'Work collaboratively, explain important choices and ask before major changes.'
+    const responseDetail = onboardingProfile.detail === 'concise' ? 'Keep responses concise.' : onboardingProfile.detail === 'deep' ? 'Explain reasoning, alternatives and trade-offs in depth.' : 'Give clear explanations with useful detail.'
     const taskSection = taskPrompt.trim() ? '## CURRENT TASK\n' + taskPrompt.trim() + '\n\n' : ''
     const convoContext = selectedConversations.map((conversation, index) => {
       const useClean = isPro && bundleModes[conversation.id] === 'clean' && conversation.cleaned_spec
@@ -849,7 +856,7 @@ function Dashboard({ session, initialPlan, onSignOut }) {
       const body = useClean ? conversation.cleaned_spec : conversation.raw_content
       return `## Conversation ${index + 1}: ${conversation.title}\nSource: ${conversation.source_ai}\nTags: ${(conversation.tags || []).join(', ') || 'None'}\nContext mode: ${sourceLabel}\n\n${body}`
     }).join('\n\n---\n\n')
-    return `# AGENT.md — ${activeProject?.title || 'Untitled Project'}\n\n## HANDOFF TARGET\n${targetOverride}\n\n## AI PROVIDER ROLE\n${providerRole}\n\n## ASSIGNED TASK ROLE\n${activeSkill?.role_name || 'General Assistant'}\n\n## ROLE INSTRUCTIONS\n${activeSkill?.instructions || 'Act as a careful, context-aware collaborator. Ask before making assumptions.'}\n\n## GLOBAL WORKING STYLE\n${style}\n\n${taskSection}## PROJECT DESCRIPTION\n${activeProject?.description || 'No project description supplied.'}\n\n## PROJECT RULES\n${projectRules}\n\n## BUNDLED SOURCE MATERIAL\n${convoContext || 'No raw conversations selected. Do not invent missing context.'}\n\n## MANDATORY 3-POINT CONFIRMATION — DO THIS BEFORE WRITING CODE\n1. **Confirm the role:** State that you understand and accept the assigned role: ${activeSkill?.role_name || 'General Assistant'}.\n2. **Prove context transfer:** Summarize the supplied raw conversations and identify the user's actual goals, constraints and decisions without silently rewriting the source material.\n3. **Expose uncertainty:** List assumptions, contradictions and missing information. Ask focused questions where needed. Do not write or modify code until the user approves this confirmation.\n\n---\nEnd of handoff. Preserve the user's original intent and ask before changing established decisions.\n`
+    return `# AGENT.md — ${activeProject?.title || 'Untitled Project'}\n\n## HANDOFF TARGET\n${targetOverride}\n\n## AI PROVIDER ROLE\n${providerRole}\n\n## ASSIGNED TASK ROLE\n${activeSkill?.role_name || 'General Assistant'}\n\n## ROLE INSTRUCTIONS\n${activeSkill?.instructions || 'Act as a careful, context-aware collaborator. Ask before making assumptions.'}\n\n## GLOBAL WORKING STYLE\n${style}\n\n## PERSONAL WORKING PREFERENCES\nFocus: ${onboardingProfile.focus || 'not specified'}\nExperience: ${onboardingProfile.experience || 'not specified'}\nAgent behaviour: ${agentBehaviour}\nResponse detail: ${responseDetail}\n\n${taskSection}## PROJECT DESCRIPTION\n${activeProject?.description || 'No project description supplied.'}\n\n## PROJECT RULES\n${projectRules}\n\n## BUNDLED SOURCE MATERIAL\n${convoContext || 'No raw conversations selected. Do not invent missing context.'}\n\n## MANDATORY 3-POINT CONFIRMATION — DO THIS BEFORE WRITING CODE\n1. **Confirm the role:** State that you understand and accept the assigned role: ${activeSkill?.role_name || 'General Assistant'}.\n2. **Prove context transfer:** Summarize the supplied raw conversations and identify the user's actual goals, constraints and decisions without silently rewriting the source material.\n3. **Expose uncertainty:** List assumptions, contradictions and missing information. Ask focused questions where needed. Do not write or modify code until the user approves this confirmation.\n\n---\nEnd of handoff. Preserve the user's original intent and ask before changing established decisions.\n`
   }
 
   async function saveHandoff(copyToClipboard = true, targetOverride = targetAi, contentOverride = null) {
@@ -1209,7 +1216,7 @@ function ImportModal({ onClose, onImport, projects, activeProjectId, providerPre
   const [filename, setFilename] = useState('')
   const [destinationProjectId, setDestinationProjectId] = useState(activeProjectId || projects[0]?.id || '')
   const [agentMode, setAgentMode] = useState(Object.values(providerPreferences.providers || {}).some(item => item?.enabled) ? 'saved' : 'manual')
-  const [targetAi, setTargetAi] = useState(providerPreferences.last_target || AI_PROVIDERS.find(provider => providerPreferences.providers?.[provider.name]?.enabled)?.name || 'Claude')
+  const [targetAi, setTargetAi] = useState(providerPreferences.providers?.[providerPreferences.last_target]?.enabled ? providerPreferences.last_target : (AI_PROVIDERS.find(provider => providerPreferences.providers?.[provider.name]?.enabled)?.name || 'Claude'))
   const [manualTarget, setManualTarget] = useState('Claude')
   const [purpose, setPurpose] = useState('')
   const [busy, setBusy] = useState(false)
@@ -1263,7 +1270,7 @@ function ImportModal({ onClose, onImport, projects, activeProjectId, providerPre
 function InboxModal({ captures, projects, activeProjectId, providerPreferences, onClose, onImport, onDiscard }) {
   const [projectForCapture, setProjectForCapture] = useState({})
   const [agentMode, setAgentMode] = useState(Object.values(providerPreferences.providers || {}).some(item => item?.enabled) ? 'saved' : 'manual')
-  const [targetAi, setTargetAi] = useState(providerPreferences.last_target || AI_PROVIDERS.find(provider => providerPreferences.providers?.[provider.name]?.enabled)?.name || 'Claude')
+  const [targetAi, setTargetAi] = useState(providerPreferences.providers?.[providerPreferences.last_target]?.enabled ? providerPreferences.last_target : (AI_PROVIDERS.find(provider => providerPreferences.providers?.[provider.name]?.enabled)?.name || 'Claude'))
   const [manualTarget, setManualTarget] = useState('Claude')
   const [purpose, setPurpose] = useState('')
   const [busyId, setBusyId] = useState('')
@@ -1296,7 +1303,7 @@ function InboxModal({ captures, projects, activeProjectId, providerPreferences, 
 function ExportModal({ projects, activeProjectId, providerPreferences, onClose, onExport }) {
   const [projectId, setProjectId] = useState(activeProjectId || projects[0]?.id || '')
   const [agentMode, setAgentMode] = useState(Object.values(providerPreferences.providers || {}).some(item => item?.enabled) ? 'saved' : 'manual')
-  const [targetAi, setTargetAi] = useState(providerPreferences.last_target || AI_PROVIDERS.find(provider => providerPreferences.providers?.[provider.name]?.enabled)?.name || 'Claude')
+  const [targetAi, setTargetAi] = useState(providerPreferences.providers?.[providerPreferences.last_target]?.enabled ? providerPreferences.last_target : (AI_PROVIDERS.find(provider => providerPreferences.providers?.[provider.name]?.enabled)?.name || 'Claude'))
   const [manualTarget, setManualTarget] = useState('Claude')
   const [purpose, setPurpose] = useState('')
   const [busy, setBusy] = useState(false)
