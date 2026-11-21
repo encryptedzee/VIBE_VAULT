@@ -564,13 +564,13 @@ function Dashboard({ session, initialPlan, onSignOut }) {
   const searchResults = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
     const entries = [
-      ...projects.map(item => ({ kind: 'project', id: item.id, projectId: item.id, title: item.title, detail: item.description || 'Project workspace' })),
-      ...conversations.map(item => ({ kind: 'conversation', id: item.id, projectId: item.project_id, title: item.title, detail: (item.source_ai || 'AI conversation') + ' · ' + formatDate(item.created_at) })),
-      ...decisions.map(item => ({ kind: 'decision', id: item.id, projectId: item.project_id, title: item.title, detail: 'Decision · ' + (item.status || 'record') })),
-      ...sessionSummaries.map(item => ({ kind: 'summary', id: item.id, projectId: item.project_id, title: item.title, detail: 'Session summary · ' + (item.source_ai || 'AI session') }))
+      ...projects.map(item => ({ kind: 'project', id: item.id, projectId: item.id, title: item.title, detail: item.description || 'Project workspace', searchText: item.project_rules || '' })),
+      ...conversations.map(item => ({ kind: 'conversation', id: item.id, projectId: item.project_id, title: item.title, detail: (item.source_ai || 'AI conversation') + ' · ' + formatDate(item.created_at), searchText: item.raw_content || '' })),
+      ...decisions.map(item => ({ kind: 'decision', id: item.id, projectId: item.project_id, title: item.title, detail: 'Decision · ' + (item.status || 'record'), searchText: item.content || '' })),
+      ...sessionSummaries.map(item => ({ kind: 'summary', id: item.id, projectId: item.project_id, title: item.title, detail: 'Session summary · ' + (item.source_ai || 'AI session'), searchText: item.summary || '' }))
     ]
     const filtered = query
-      ? entries.filter(item => (item.title + ' ' + item.detail).toLowerCase().includes(query))
+      ? entries.filter(item => (item.title + ' ' + item.detail + ' ' + item.searchText).toLowerCase().includes(query))
       : [
           ...conversations.slice(0, 5).map(item => ({ kind: 'conversation', id: item.id, projectId: item.project_id, title: item.title, detail: (item.source_ai || 'AI conversation') + ' · ' + formatDate(item.created_at) })),
           ...projects.slice(0, 3).map(item => ({ kind: 'project', id: item.id, projectId: item.id, title: item.title, detail: item.description || 'Project workspace' }))
@@ -968,11 +968,14 @@ function Dashboard({ session, initialPlan, onSignOut }) {
       ChatGPT: 'https://chatgpt.com/?q=' + encoded,
       Gemini: 'https://gemini.google.com/app'
     }
-    await navigator.clipboard?.writeText(content)
     const url = supportedTargets[target]
+    // Open synchronously from the click so browser popup protection does not block it after clipboard awaits.
     if (url) window.open(url, '_blank', 'noopener,noreferrer')
+    let copied = false
+    try { await navigator.clipboard?.writeText(content); copied = Boolean(navigator.clipboard) }
+    catch { copied = false }
     await saveHandoff(false, target, content)
-    showToast(url ? 'Handoff copied. ' + target + ' opened in a new tab.' : 'Handoff copied. Open ' + target + ' and paste the prepared context.')
+    showToast((copied ? 'Handoff copied. ' : 'Handoff prepared; clipboard access was blocked. ') + (url ? target + ' opened in a new tab.' : 'Open ' + target + ' and paste the prepared context.'))
   }
 
   async function downloadHandoff() {
@@ -1143,6 +1146,20 @@ function Dashboard({ session, initialPlan, onSignOut }) {
                 <div className="ide-memory-row"><span className="ide-memory-icon"><BookOpen size={16}/></span><span><strong>Project description</strong><small>{activeProject.description || 'Add a description to establish the project objective.'}</small></span></div>
                 <div className="ide-memory-row"><span className="ide-memory-icon"><Braces size={16}/></span><span><strong>Project rules</strong><small>{activeProject.project_rules || 'No project rules have been recorded yet.'}</small></span></div>
                 <div className="ide-memory-row"><span className="ide-memory-icon"><CircleDot size={16}/></span><span><strong>Approved decisions</strong><small>{projectDecisions.filter(item => item.status === 'approved').length} approved · {projectDecisions.filter(item => item.status === 'open').length} open questions</small></span></div>
+              </section>
+            </div>
+            <div className="ide-overview-activity-grid">
+              <section className="ide-content-panel"><div className="ide-panel-heading"><div><span className="ide-kicker">RECENT DECISIONS</span><h2>Project decisions</h2></div><button onClick={() => setPane('decisions')}>VIEW ALL <ArrowUpRight size={13}/></button></div>
+                {projectDecisions.slice(0,4).map(decision => <button className="ide-overview-record" key={decision.id} onClick={() => setPane('decisions')}><span className={'ide-decision-state state-' + decision.status}>{decision.status}</span><span><strong>{decision.title}</strong><small>{formatDate(decision.created_at)}</small></span></button>)}
+                {!projectDecisions.length && <div className="ide-panel-empty compact"><CircleDot size={18}/><strong>No saved decisions</strong><span>Approved decisions and open questions will appear here.</span></div>}
+              </section>
+              <section className="ide-content-panel"><div className="ide-panel-heading"><div><span className="ide-kicker">RECENT HANDOFFS</span><h2>Agent activity</h2></div><button onClick={() => setPane('handoffs')}>VIEW ALL <ArrowUpRight size={13}/></button></div>
+                {projectHandoffs.slice(0,4).map(handoff => <button className="ide-overview-record" key={handoff.id} onClick={() => setPane('handoffs')}><span className="ide-overview-record-icon"><Bot size={14}/></span><span><strong>{handoff.target_ai} · {handoff.role_name}</strong><small>{formatDate(handoff.created_at)} · {handoff.confirmed ? 'Confirmed' : 'Awaiting confirmation'}</small></span></button>)}
+                {!projectHandoffs.length && <div className="ide-panel-empty compact"><Workflow size={18}/><strong>No handoffs yet</strong><span>Generated handoff history will appear here.</span></div>}
+              </section>
+              <section className="ide-content-panel"><div className="ide-panel-heading"><div><span className="ide-kicker">IMPORT ACTIVITY</span><h2>Pending captures</h2></div><button onClick={() => setPane('inbox')}>OPEN INBOX <ArrowUpRight size={13}/></button></div>
+                {captureInbox.slice(0,3).map(capture => <button className="ide-overview-record" key={capture.id} onClick={() => setPane('inbox')}><span className="ide-overview-record-icon"><Inbox size={14}/></span><span><strong>{capture.title}</strong><small>{capture.source_ai} · {formatDate(capture.created_at)}</small></span></button>)}
+                {!captureInbox.length && <div className="ide-panel-empty compact"><CheckCircle2 size={18}/><strong>No pending captures</strong><span>New browser captures appear here for review.</span></div>}
               </section>
             </div>
             <div className="ide-bottom-note"><ShieldCheck size={15}/><span>Original conversation records are preserved independently from generated specifications and summaries.</span></div>
