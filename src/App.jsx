@@ -16,7 +16,7 @@ const LIPA_NAMBA = import.meta.env.VITE_LIPA_NAMBA || ''
 const LIPA_NAME = import.meta.env.VITE_LIPA_NAME || ''
 
 // Make it obvious when the isolated Cloudflare feature preview is open.
-const IS_FEATURE_PREVIEW_HOST = typeof window !== 'undefined' && /^(?:feature-professional-workspace-redesign|[a-f0-9]{8})-vibevault\\.vibevault-hq\\.workers\\.dev$/i.test(window.location.hostname)
+const IS_FEATURE_PREVIEW_HOST = typeof window !== 'undefined' && /^(?:feature-professional-workspace-redesign|[a-f0-9]{8})-vibevault\.vibevault-hq\.workers\.dev$/i.test(window.location.hostname)
 
 const SOURCE_AIS = ['ALL', 'CLAUDE', 'CHATGPT', 'GEMINI', 'CURSOR', 'WINDSURF', 'PERPLEXITY', 'DEEPSEEK', 'LOVABLE', 'BASE44', 'TRAE', 'QODER', 'OTHER']
 const TARGET_AIS = ['Claude', 'ChatGPT', 'Gemini', 'Cursor', 'Windsurf', 'Perplexity', 'DeepSeek', 'Lovable', 'Base44', 'Trae', 'Qoder', 'Other']
