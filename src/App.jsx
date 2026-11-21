@@ -24,20 +24,20 @@ const DEFAULT_SKILLS = [
 ]
 
 const AI_PROVIDERS = [
-  { name: 'Claude', logo: 'https://cdn.simpleicons.org/anthropic/D97757', description: 'Development, reasoning and long-form work', role: 'Development partner' },
-  { name: 'ChatGPT', logo: 'https://cdn.simpleicons.org/openai/FFFFFF', description: 'Planning, analysis and general assistance', role: 'Research & planning' },
-  { name: 'Gemini', logo: 'https://cdn.simpleicons.org/googlegemini/8E75B2', description: 'Research and multimodal workflows', role: 'Research & multimodal' },
-  { name: 'Cursor', logo: 'https://cdn.simpleicons.org/cursor/FFFFFF', description: 'Code editing and implementation', role: 'IDE implementation' },
-  { name: 'Windsurf', logo: 'https://cdn.simpleicons.org/windsurf/00A3FF', description: 'Agentic coding workflows', role: 'Coding agent' },
-  { name: 'Perplexity', logo: 'https://cdn.simpleicons.org/perplexity/20B8CD', description: 'Web research and source discovery', role: 'Web researcher' },
-  { name: 'DeepSeek', logo: 'https://cdn.simpleicons.org/deepseek/4D6BFE', description: 'Technical reasoning and problem solving', role: 'Reasoning specialist' },
-  { name: 'Lovable', logo: 'https://cdn.simpleicons.org/lovable/FF69B4', description: 'Prompt-to-app product building', role: 'App builder' },
+  { name: 'Claude', logo: 'https://cdn.simpleicons.org/claude', description: 'Reasoning, writing and development', role: 'Development partner' },
+  { name: 'ChatGPT', logo: 'https://cdn.simpleicons.org/openai', description: 'Planning, analysis and general assistance', role: 'Research & planning' },
+  { name: 'Gemini', logo: 'https://cdn.simpleicons.org/googlegemini', description: 'Research and multimodal workflows', role: 'Research & multimodal' },
+  { name: 'Cursor', logo: 'https://cdn.simpleicons.org/cursor', description: 'Code editing and implementation', role: 'IDE implementation' },
+  { name: 'Windsurf', logo: 'https://cdn.simpleicons.org/windsurf', description: 'Agentic coding workflows', role: 'Coding agent' },
+  { name: 'Perplexity', logo: 'https://cdn.simpleicons.org/perplexity', description: 'Web research and source discovery', role: 'Web researcher' },
+  { name: 'DeepSeek', logo: 'https://cdn.simpleicons.org/deepseek', description: 'Technical reasoning and problem solving', role: 'Reasoning specialist' },
+  { name: 'Lovable', logo: 'https://cdn.simpleicons.org/lovable', description: 'Prompt-to-app product building', role: 'App builder' },
   { name: 'Base44', logo: '', description: 'No-code and AI app building', role: 'App builder' },
   { name: 'Trae', logo: '', description: 'AI-assisted development environment', role: 'Coding assistant' },
   { name: 'Qoder', logo: '', description: 'Agentic software development', role: 'Coding agent' },
   { name: 'Other', logo: '', description: 'A provider not listed here', role: 'General assistant' }
 ]
-const EMPTY_AI_PREFERENCES = { providers: {}, last_target: 'Claude', recommendations: false }
+const EMPTY_AI_PREFERENCES = { providers: {}, last_target: 'Claude', recommendations: false, profile: {} }
 
 function readArchiveMessageContent(content) {
   if (typeof content === 'string') return content
@@ -1162,19 +1162,50 @@ function ConversationModal({ onClose, onSave }) {
 }
 
 
-function ImportModal({ onClose, onImport }) {
+function AIProviderLogo({ provider, className = '' }) {
+  const [failed, setFailed] = useState(false)
+  return <span className={className}>{provider?.logo && !failed
+    ? <img src={provider.logo} alt={provider.name + ' official brand mark'} onError={() => setFailed(true)}/>
+    : <span className="provider-wordmark">{provider?.name || 'AI'}</span>}</span>
+}
+
+function TransferAgentChooser({ preferences, targetAi, setTargetAi, agentMode, setAgentMode, manualTarget, setManualTarget, purpose, setPurpose }) {
+  const savedProviders = AI_PROVIDERS.filter(provider => preferences.providers?.[provider.name]?.enabled)
+  const savedTarget = savedProviders.some(provider => provider.name === targetAi) ? targetAi : (savedProviders[0]?.name || '')
+  return <section className="transfer-agent-card">
+    <div className="transfer-card-heading"><span className="transfer-card-icon"><Bot size={17}/></span><span><strong>Choose the receiving AI</strong><small>Set where this context should continue.</small></span></div>
+    <div className="transfer-mode-options">
+      <label className={'transfer-mode-option ' + (agentMode === 'saved' ? 'selected' : '')}><input type="radio" name="transfer-agent-mode" checked={agentMode === 'saved'} disabled={!savedProviders.length} onChange={() => { setAgentMode('saved'); if (savedTarget) setTargetAi(savedTarget) }}/><span><strong>Use my saved agent</strong><small>Use its saved name and purpose.</small></span></label>
+      <label className={'transfer-mode-option ' + (agentMode === 'manual' ? 'selected' : '')}><input type="radio" name="transfer-agent-mode" checked={agentMode === 'manual'} onChange={() => setAgentMode('manual')}/><span><strong>Choose for this transfer</strong><small>Pick another AI and describe its task.</small></span></label>
+    </div>
+    {agentMode === 'saved' ? <div className="transfer-saved-agent">{savedProviders.length ? <>
+      <label className="field-label">SAVED AI AGENT<select className="field-input" value={savedTarget} onChange={event => setTargetAi(event.target.value)}>{savedProviders.map(provider => <option value={provider.name} key={provider.name}>{provider.name}</option>)}</select></label>
+      <div className="transfer-agent-identity"><AIProviderLogo provider={AI_PROVIDERS.find(provider => provider.name === savedTarget)} className="transfer-provider-logo"/><span><strong>{savedTarget}</strong><small>{preferences.providers?.[savedTarget]?.role || 'Saved AI agent'}</small></span><CheckCircle2 size={16}/></div>
+    </> : <div className="transfer-no-saved"><span>No saved AI agents yet.</span><small>Choose an agent for this transfer, or complete AI workspace setup first.</small></div>}</div> : <div className="transfer-manual-agent">
+      <label className="field-label">AI PROVIDER<select className="field-input" value={manualTarget} onChange={event => setManualTarget(event.target.value)}>{AI_PROVIDERS.map(provider => <option value={provider.name} key={provider.name}>{provider.name}</option>)}</select></label>
+      <label className="field-label">WHAT SHOULD THIS AGENT BE USED FOR?<textarea className="field-input field-textarea" value={purpose} onChange={event => setPurpose(event.target.value)} placeholder="For example: review the architecture, identify security gaps, and propose a plan." required/></label>
+    </div>}
+    <p className="transfer-agent-note"><ShieldCheck size={14}/> This prepares the handoff context. It does not send project data to an AI provider automatically.</p>
+  </section>
+}
+
+function ImportModal({ onClose, onImport, projects, activeProjectId, providerPreferences }) {
   const [sourceAi, setSourceAi] = useState('ChatGPT')
   const [title, setTitle] = useState('')
   const [rawText, setRawText] = useState('')
   const [filename, setFilename] = useState('')
+  const [destinationProjectId, setDestinationProjectId] = useState(activeProjectId || projects[0]?.id || '')
+  const [agentMode, setAgentMode] = useState(Object.values(providerPreferences.providers || {}).some(item => item?.enabled) ? 'saved' : 'manual')
+  const [targetAi, setTargetAi] = useState(providerPreferences.last_target || AI_PROVIDERS.find(provider => providerPreferences.providers?.[provider.name]?.enabled)?.name || 'Claude')
+  const [manualTarget, setManualTarget] = useState('Claude')
+  const [purpose, setPurpose] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [previewCount, setPreviewCount] = useState(0)
   const handleFile = async event => {
     const file = event.target.files?.[0]
     if (!file) return
-    setFilename(file.name)
-    setError('')
+    setFilename(file.name); setError('')
     try {
       const text = await file.text()
       setRawText(text)
@@ -1185,39 +1216,53 @@ function ImportModal({ onClose, onImport }) {
   }
   const submit = async event => {
     event.preventDefault()
+    if (!destinationProjectId) { setError('Choose a destination project first.'); return }
+    if (agentMode === 'manual' && !purpose.trim()) { setError('Describe what the selected AI should be used for.'); return }
+    if (agentMode === 'saved' && !providerPreferences.providers?.[targetAi]?.enabled) { setError('Choose a saved AI agent or switch to manual selection.'); return }
     setBusy(true); setError('')
     try {
       const rows = parseImportedConversations(rawText, filename, sourceAi)
       if (rows.length === 1 && title.trim()) rows[0].title = title.trim()
-      await onImport(rows)
+      await onImport(rows, { projectId: destinationProjectId, targetAi: agentMode === 'saved' ? targetAi : manualTarget, agentMode, taskPurpose: agentMode === 'manual' ? purpose.trim() : '' })
     } catch (err) { setError(err.message || 'Could not import this conversation.') }
     finally { setBusy(false) }
   }
-  return <Modal title="IMPORT CONVERSATIONS" eyebrow="BRING YOUR EXISTING AI WORK" onClose={onClose} wide>
-    <form className="modal-form import-form" onSubmit={submit}>
-      <div className="import-source-note"><Archive size={18}/><span><strong>Original conversation content is preserved.</strong><small>Import a single thread or a supported JSON conversation archive. ZIP archives must be extracted before selecting the JSON file.</small></span></div>
-      <div className="form-two-col">
-        <label className="field-label">SOURCE AI<select className="field-input" value={sourceAi} onChange={e => setSourceAi(e.target.value)}>{AI_PROVIDERS.map(provider => <option key={provider.name} value={provider.name}>{provider.name}</option>)}</select></label>
-        <label className="field-label">CONVERSATION TITLE<input className="field-input" value={title} onChange={e => setTitle(e.target.value)} placeholder="Used for a single text import"/></label>
+  return <Modal title="Import conversations" eyebrow="ADD CONTEXT TO YOUR PROJECT" onClose={onClose} wide>
+    <form className="modal-form import-form transfer-dialog" onSubmit={submit}>
+      <div className="transfer-destination-card"><div className="transfer-card-heading"><span className="transfer-card-icon"><FolderKanban size={17}/></span><span><strong>Where should this content go?</strong><small>Choose the project that will own these original conversations.</small></span></div>
+        <label className="field-label">DESTINATION PROJECT<select className="field-input" value={destinationProjectId} onChange={event => setDestinationProjectId(event.target.value)} required><option value="">Choose a project</option>{projects.map(project => <option value={project.id} key={project.id}>{project.title}</option>)}</select></label>
+        {!projects.length && <div className="transfer-no-saved"><span>No projects yet.</span><small>Create a project before importing conversations.</small></div>}
       </div>
+      <TransferAgentChooser preferences={providerPreferences} targetAi={targetAi} setTargetAi={setTargetAi} agentMode={agentMode} setAgentMode={setAgentMode} manualTarget={manualTarget} setManualTarget={setManualTarget} purpose={purpose} setPurpose={setPurpose}/>
+      <div className="import-source-note"><Archive size={18}/><span><strong>Your original conversation is preserved.</strong><small>Supported formats: JSON, JSONL, TXT and Markdown. ZIP archives must be extracted first.</small></span></div>
+      <div className="form-two-col"><label className="field-label">SOURCE AI<select className="field-input" value={sourceAi} onChange={e => setSourceAi(e.target.value)}>{AI_PROVIDERS.map(provider => <option key={provider.name} value={provider.name}>{provider.name}</option>)}</select></label><label className="field-label">CONVERSATION TITLE<input className="field-input" value={title} onChange={e => setTitle(e.target.value)} placeholder="Used for a single text import"/></label></div>
       <label className="import-dropzone"><Upload size={24}/><strong>{filename || 'Choose a conversation file'}</strong><span>JSON, JSONL, TXT or Markdown</span><input type="file" accept=".json,.jsonl,.txt,.md,.markdown" onChange={handleFile}/></label>
       <div className="import-divider"><span>OR PASTE A CONVERSATION</span></div>
       <label className="field-label">CONVERSATION CONTENT<textarea className="field-input field-textarea raw-input" required value={rawText} onChange={e => setRawText(e.target.value)} placeholder="Paste the conversation here, or choose a file above."/></label>
-      {previewCount > 0 && <div className="notice notice-success"><CheckCircle2 size={16}/><span>Ready to import {previewCount} conversation{previewCount === 1 ? '' : 's'} from this file.</span></div>}
+      {previewCount > 0 && <div className="notice notice-success"><CheckCircle2 size={16}/><span>Ready to import {previewCount} conversation{previewCount === 1 ? '' : 's'}.</span></div>}
       {error && <div className="notice notice-error"><CircleHelp size={16}/><span>{error}</span></div>}
-      <div className="raw-integrity"><ShieldCheck size={15}/> Imported records stay in the Vault as original source material. Cleaned specifications are stored separately.</div>
-      <div className="modal-actions"><Button variant="ghost" type="button" onClick={onClose}>CANCEL</Button><Button disabled={busy || !rawText.trim()}>{busy ? <><span className="vv-spinner"/> IMPORTING...</> : 'IMPORT TO PROJECT'}</Button></div>
+      <div className="raw-integrity"><ShieldCheck size={15}/> The saved transcript remains separate from generated specifications and handoff notes.</div>
+      <div className="modal-actions"><Button variant="ghost" type="button" onClick={onClose}>Cancel</Button><Button disabled={busy || !rawText.trim() || !projects.length}>{busy ? <><span className="vv-spinner"/> Importing…</> : 'Import to project'}</Button></div>
     </form>
   </Modal>
 }
 
-function InboxModal({ captures, projects, activeProjectId, onClose, onImport, onDiscard }) {
+function InboxModal({ captures, projects, activeProjectId, providerPreferences, onClose, onImport, onDiscard }) {
   const [projectForCapture, setProjectForCapture] = useState({})
+  const [agentMode, setAgentMode] = useState(Object.values(providerPreferences.providers || {}).some(item => item?.enabled) ? 'saved' : 'manual')
+  const [targetAi, setTargetAi] = useState(providerPreferences.last_target || AI_PROVIDERS.find(provider => providerPreferences.providers?.[provider.name]?.enabled)?.name || 'Claude')
+  const [manualTarget, setManualTarget] = useState('Claude')
+  const [purpose, setPurpose] = useState('')
   const [busyId, setBusyId] = useState('')
   const [error, setError] = useState('')
   const importOne = async capture => {
+    const destination = projectForCapture[capture.id] || activeProjectId || projects[0]?.id || ''
+    if (!destination) { setError('Choose a destination project before importing.'); return }
+    if (agentMode === 'manual' && !purpose.trim()) { setError('Describe what the selected AI should be used for.'); return }
+    if (agentMode === 'saved' && !providerPreferences.providers?.[targetAi]?.enabled) { setError('Choose a saved AI agent or switch to manual selection.'); return }
     setBusyId(capture.id); setError('')
-    try { await onImport(capture, projectForCapture[capture.id] || activeProjectId) }
+    const transfer = { targetAi: agentMode === 'saved' ? targetAi : manualTarget, agentMode, taskPurpose: agentMode === 'manual' ? purpose.trim() : '' }
+    try { await onImport(capture, destination, transfer) }
     catch (err) { setError(err.message || 'Could not import this capture.') }
     finally { setBusyId('') }
   }
@@ -1226,47 +1271,90 @@ function InboxModal({ captures, projects, activeProjectId, onClose, onImport, on
     try { await onDiscard(id) } catch (err) { setError(err.message || 'Could not discard this capture.') }
     finally { setBusyId('') }
   }
-  return <Modal title="IMPORT INBOX" eyebrow="BROWSER CAPTURES WAITING FOR A PROJECT" onClose={onClose} wide>
-    <div className="inbox-intro"><Inbox size={19}/><span>Captures stay separate until you assign them to a project. Nothing enters your permanent Conversation Vault without your action.</span></div>
-    {!captures.length ? <div className="empty-state inbox-empty"><Inbox size={28}/><h3 className="display">YOUR INBOX IS CLEAR.</h3><p>Use the VibeVault browser extension to capture a conversation from a supported AI page.</p></div> : <div className="inbox-capture-list">{captures.map(capture => <article className="inbox-capture-card" key={capture.id}><div className="conversation-meta"><span className="source-badge">{capture.source_ai}</span><span>{formatDate(capture.created_at)}</span></div><h3>{capture.title}</h3><p>{(capture.raw_content || '').slice(0, 220).replace(/\s+/g, ' ')}{(capture.raw_content || '').length > 220 ? '…' : ''}</p><label className="field-label">SAVE INTO PROJECT<select className="field-input" value={projectForCapture[capture.id] || activeProjectId} onChange={e => setProjectForCapture(current => ({ ...current, [capture.id]: e.target.value }))}><option value="">Choose a project</option>{projects.map(project => <option value={project.id} key={project.id}>{project.title}</option>)}</select></label><div className="modal-actions"><Button variant="ghost" onClick={() => discardOne(capture.id)} disabled={busyId === capture.id}>DISCARD</Button><Button onClick={() => importOne(capture)} disabled={busyId === capture.id || !projects.length}>{busyId === capture.id ? 'SAVING...' : 'ADD TO VAULT'}</Button></div></article>)}</div>}
+  return <Modal title="Import inbox" eyebrow="REVIEW BROWSER CAPTURES" onClose={onClose} wide>
+    <div className="inbox-intro"><Inbox size={19}/><span>Captured conversations remain here until you assign a destination and add them to a project.</span></div>
+    {captures.length > 0 && <TransferAgentChooser preferences={providerPreferences} targetAi={targetAi} setTargetAi={setTargetAi} agentMode={agentMode} setAgentMode={setAgentMode} manualTarget={manualTarget} setManualTarget={setManualTarget} purpose={purpose} setPurpose={setPurpose}/>}
+    {!captures.length ? <div className="empty-state inbox-empty"><Inbox size={28}/><h3 className="display">Your inbox is clear.</h3><p>Capture a conversation from a supported AI page to review it here.</p></div> : <div className="inbox-capture-list">{captures.map(capture => <article className="inbox-capture-card transfer-capture-card" key={capture.id}><div className="conversation-meta"><span className="source-badge">{capture.source_ai}</span><span>{formatDate(capture.created_at)}</span></div><h3>{capture.title}</h3><p>{(capture.raw_content || '').slice(0, 220).replace(/\s+/g, ' ')}{(capture.raw_content || '').length > 220 ? '…' : ''}</p><label className="field-label">DESTINATION PROJECT<select className="field-input" value={projectForCapture[capture.id] || activeProjectId || projects[0]?.id || ''} onChange={e => setProjectForCapture(current => ({ ...current, [capture.id]: e.target.value }))}><option value="">Choose a project</option>{projects.map(project => <option value={project.id} key={project.id}>{project.title}</option>)}</select></label><div className="modal-actions"><Button variant="ghost" onClick={() => discardOne(capture.id)} disabled={busyId === capture.id}>Discard</Button><Button onClick={() => importOne(capture)} disabled={busyId === capture.id || !projects.length}>{busyId === capture.id ? 'Saving…' : 'Add to project'}</Button></div></article>)}</div>}
     {error && <div className="notice notice-error"><CircleHelp size={16}/><span>{error}</span></div>}
-    <div className="modal-actions"><Button onClick={onClose}>DONE</Button></div>
+    <div className="modal-actions"><Button onClick={onClose}>Done</Button></div>
+  </Modal>
+}
+
+function ExportModal({ projects, activeProjectId, providerPreferences, onClose, onExport }) {
+  const [projectId, setProjectId] = useState(activeProjectId || projects[0]?.id || '')
+  const [agentMode, setAgentMode] = useState(Object.values(providerPreferences.providers || {}).some(item => item?.enabled) ? 'saved' : 'manual')
+  const [targetAi, setTargetAi] = useState(providerPreferences.last_target || AI_PROVIDERS.find(provider => providerPreferences.providers?.[provider.name]?.enabled)?.name || 'Claude')
+  const [manualTarget, setManualTarget] = useState('Claude')
+  const [purpose, setPurpose] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const submit = async event => {
+    event.preventDefault()
+    if (!projectId) { setError('Choose a project to export.'); return }
+    if (agentMode === 'manual' && !purpose.trim()) { setError('Describe what the selected AI should be used for.'); return }
+    if (agentMode === 'saved' && !providerPreferences.providers?.[targetAi]?.enabled) { setError('Choose a saved AI agent or switch to manual selection.'); return }
+    setBusy(true); setError('')
+    try { await onExport({ projectId, targetAi: agentMode === 'saved' ? targetAi : manualTarget, agentMode, taskPurpose: agentMode === 'manual' ? purpose.trim() : '' }) }
+    catch (err) { setError(err.message || 'Could not export this project.') }
+    finally { setBusy(false) }
+  }
+  return <Modal title="Export project" eyebrow="PREPARE A PORTABLE PROJECT BUNDLE" onClose={onClose} wide>
+    <form className="modal-form transfer-dialog" onSubmit={submit}>
+      <div className="transfer-destination-card"><div className="transfer-card-heading"><span className="transfer-card-icon"><Download size={17}/></span><span><strong>Choose the project to export</strong><small>The bundle includes original conversations and saved project records.</small></span></div>
+        <label className="field-label">PROJECT<select className="field-input" value={projectId} onChange={event => setProjectId(event.target.value)} required><option value="">Choose a project</option>{projects.map(project => <option key={project.id} value={project.id}>{project.title}</option>)}</select></label>
+      </div>
+      <TransferAgentChooser preferences={providerPreferences} targetAi={targetAi} setTargetAi={setTargetAi} agentMode={agentMode} setAgentMode={setAgentMode} manualTarget={manualTarget} setManualTarget={setManualTarget} purpose={purpose} setPurpose={setPurpose}/>
+      {error && <div className="notice notice-error"><CircleHelp size={16}/><span>{error}</span></div>}
+      <div className="transfer-export-note"><ShieldCheck size={15}/> The selected agent is recorded in export metadata only. Exporting does not send the bundle to that provider.</div>
+      <div className="modal-actions"><Button variant="ghost" type="button" onClick={onClose}>Cancel</Button><Button disabled={busy || !projects.length}>{busy ? 'Preparing export…' : 'Export project bundle'}</Button></div>
+    </form>
   </Modal>
 }
 
 function AIWorkspaceModal({ initialPreferences, onboarding, onClose, onSave }) {
-  const [providers, setProviders] = useState(() => Object.fromEntries(AI_PROVIDERS.map(provider => [provider.name, {
-    enabled: Boolean(initialPreferences.providers?.[provider.name]?.enabled),
-    role: initialPreferences.providers?.[provider.name]?.role || provider.role
-  }])))
+  const [step, setStep] = useState(0)
+  const [providers, setProviders] = useState(() => Object.fromEntries(AI_PROVIDERS.map(provider => [provider.name, { enabled: Boolean(initialPreferences.providers?.[provider.name]?.enabled), role: initialPreferences.providers?.[provider.name]?.role || provider.role }])))
+  const [profile, setProfile] = useState(() => ({ focus: initialPreferences.profile?.focus || 'software', experience: initialPreferences.profile?.experience || 'building', collaboration: initialPreferences.profile?.collaboration || 'balanced', detail: initialPreferences.profile?.detail || 'clear' }))
   const [lastTarget, setLastTarget] = useState(initialPreferences.last_target || 'Claude')
   const [recommendations, setRecommendations] = useState(Boolean(initialPreferences.recommendations))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const enabledCount = Object.values(providers).filter(item => item.enabled).length
+  const enabledProviders = AI_PROVIDERS.filter(provider => providers[provider.name]?.enabled)
   const submit = async event => {
     event.preventDefault()
-    if (!enabledCount) { setError('Select at least one AI provider to continue.'); return }
+    if (step < 3) { setStep(current => Math.min(3, current + 1)); return }
+    if (!enabledProviders.length) { setStep(2); setError('Choose at least one AI provider.'); return }
     setBusy(true); setError('')
-    try { await onSave({ providers, last_target: lastTarget, recommendations }) }
+    try { await onSave({ providers, profile, last_target: lastTarget, recommendations }) }
     catch (err) { setError(err.message || 'Could not save your AI workspace.') }
     finally { setBusy(false) }
   }
-  return <Modal title={onboarding ? 'SET UP YOUR AI WORKSPACE' : 'YOUR AI WORKSPACE'} eyebrow={onboarding ? 'FIRST-TIME SETUP · YOUR CHOICES ARE SAVED' : 'PROVIDERS · PERSONAL ROLES · PREFERENCES'} onClose={onboarding ? undefined : onClose} wide>
-    <form className="modal-form ai-workspace-form" onSubmit={submit}>
-      <p className="modal-explainer">{onboarding ? 'Choose the AI tools you actually use and assign each one a purpose. You can change these settings later. Choose at least one provider to finish setup.' : 'Select your preferred AI providers and tell VibeVault what you usually use each one for. These preferences guide future handoffs.'}</p>
-      <div className="ai-provider-grid">{AI_PROVIDERS.map(provider => {
-        const value = providers[provider.name]
-        return <article className={'ai-provider-card ' + (value.enabled ? 'selected' : '')} key={provider.name}>
-          <label className="ai-provider-top"><input type="checkbox" checked={value.enabled} onChange={e => setProviders(current => ({ ...current, [provider.name]: { ...current[provider.name], enabled: e.target.checked } }))}/><span className="ai-provider-logo">{provider.logo ? <img src={provider.logo} alt={provider.name + ' logo'} onError={event => { event.currentTarget.style.display = 'none' }}/> : provider.name.slice(0, 1)}</span><strong>{provider.name}</strong><span className="ai-selected-mark">{value.enabled ? <CheckCircle2 size={16}/> : <Plus size={15}/>}</span></label>
-          <p>{provider.description}</p>
-          <label className="field-label">MY USUAL ROLE<input className="field-input" value={value.role} onChange={e => setProviders(current => ({ ...current, [provider.name]: { ...current[provider.name], role: e.target.value } }))} placeholder="What do you use this AI for?"/></label>
-        </article>
-      })}</div>
-      <label className="recommendation-toggle"><input type="checkbox" checked={recommendations} onChange={e => setRecommendations(e.target.checked)}/><span><strong>Suggest a suitable AI for a task</strong><small>Recommendations never override your selection. You remain in control of the destination AI.</small></span></label>
-      <label className="field-label">DEFAULT AI FOR HANDOFFS<select className="field-input" value={providers[lastTarget]?.enabled ? lastTarget : (AI_PROVIDERS.find(provider => providers[provider.name]?.enabled)?.name || '')} onChange={e => setLastTarget(e.target.value)}>{AI_PROVIDERS.filter(provider => providers[provider.name]?.enabled).map(provider => <option key={provider.name}>{provider.name}</option>)}</select></label>
+  const labels = ['Your work', 'Agent behaviour', 'AI tools', 'Defaults']
+  return <Modal title={onboarding ? 'Welcome to VibeVault' : 'AI workspace preferences'} eyebrow={onboarding ? 'PERSONALISE YOUR FIRST WORKSPACE' : 'PROVIDERS · AGENT BEHAVIOUR · DEFAULTS'} onClose={onboarding ? undefined : onClose} wide>
+    <form className="modal-form setup-wizard" onSubmit={submit}>
+      <div className="setup-wizard-progress"><div className="setup-step-label"><span>STEP {step + 1} OF 4</span><strong>{labels[step]}</strong></div><div className="setup-progress-track"><span style={{width: ((step + 1) * 25) + '%'}}/></div></div>
+      {step === 0 && <div className="setup-wizard-page"><span className="setup-wizard-kicker">LET'S SET UP YOUR SPACE</span><h3>What brings you to VibeVault?</h3><p>We use this to shape the way your agents organise and return project context.</p>
+        <div className="setup-answer-grid">{[['software','Build apps & software','Websites, mobile apps, APIs and code.'],['product','Build products & businesses','Product decisions, operations and planning.'],['learning','Learn & research','Study notes, analysis and investigation.'],['creative','Create content & media','Writing, design, video and creative work.'],['mixed','A bit of everything','Switch between different kinds of projects.']].map(([value,title,description]) => <button type="button" key={value} className={'setup-answer-card ' + (profile.focus === value ? 'selected' : '')} onClick={() => setProfile(current => ({...current,focus:value}))}><strong>{title}</strong><small>{description}</small>{profile.focus === value && <CheckCircle2 size={16}/>}</button>)}</div>
+        <label className="field-label">YOUR EXPERIENCE<select className="field-input" value={profile.experience} onChange={event => setProfile(current => ({...current,experience:event.target.value}))}><option value="new">I'm just getting started</option><option value="building">I build things regularly</option><option value="experienced">I'm experienced and want more control</option></select></label>
+      </div>}
+      {step === 1 && <div className="setup-wizard-page"><span className="setup-wizard-kicker">HOW SHOULD YOUR AGENTS WORK?</span><h3>Choose your working style.</h3><p>These preferences guide agent behaviour. You can change them at any time.</p>
+        <div className="setup-behaviour-list">{[['guided','Guide me as we work','Explain the plan, break work into steps and check before moving on.'],['balanced','Work with me','Move work forward, explain important choices and ask before major changes.'],['proactive','Take initiative','Suggest next steps and act on clearly defined tasks while stating assumptions.']].map(([value,title,description]) => <button type="button" key={value} className={'setup-behaviour-card ' + (profile.collaboration === value ? 'selected' : '')} onClick={() => setProfile(current => ({...current,collaboration:value}))}><span><strong>{title}</strong><small>{description}</small></span>{profile.collaboration === value && <CheckCircle2 size={17}/>}</button>)}</div>
+        <label className="field-label">ANSWER DETAIL<select className="field-input" value={profile.detail} onChange={event => setProfile(current => ({...current,detail:event.target.value}))}><option value="concise">Concise answers and summaries</option><option value="clear">Clear explanations with useful detail</option><option value="deep">Deep explanations and trade-offs</option></select></label>
+      </div>}
+      {step === 2 && <div className="setup-wizard-page"><span className="setup-wizard-kicker">YOUR AI TOOLKIT</span><h3>Which AI tools do you use?</h3><p>Select the providers you use, then add the usual purpose for each selected agent.</p>
+        <div className="setup-provider-list">{AI_PROVIDERS.map(provider => { const value = providers[provider.name]; return <article className={'setup-provider-row ' + (value.enabled ? 'selected' : '')} key={provider.name}>
+          <label className="setup-provider-select"><input type="checkbox" checked={value.enabled} onChange={event => setProviders(current => ({...current,[provider.name]:{...current[provider.name],enabled:event.target.checked}}))}/><AIProviderLogo provider={provider} className="setup-provider-logo"/><span><strong>{provider.name}</strong><small>{provider.description}</small></span><span className="setup-provider-check">{value.enabled ? <CheckCircle2 size={17}/> : <Plus size={15}/>}</span></label>
+          {value.enabled && <label className="field-label setup-role-field">WHAT DO YOU USE {provider.name.toUpperCase()} FOR?<input className="field-input" value={value.role} onChange={event => setProviders(current => ({...current,[provider.name]:{...current[provider.name],role:event.target.value}}))} placeholder="e.g. UI implementation, backend review, research"/></label>}
+        </article>})}</div>
+      </div>}
+      {step === 3 && <div className="setup-wizard-page"><span className="setup-wizard-kicker">YOUR DEFAULT WORKFLOW</span><h3>Set your preferred agent.</h3><p>VibeVault uses this default when you don't select a different destination.</p>
+        <label className="field-label">DEFAULT AI AGENT<select className="field-input" value={enabledProviders.some(provider => provider.name === lastTarget) ? lastTarget : (enabledProviders[0]?.name || '')} onChange={event => setLastTarget(event.target.value)}>{enabledProviders.map(provider => <option key={provider.name} value={provider.name}>{provider.name}</option>)}</select></label>
+        {enabledProviders.length > 0 && <div className="setup-default-summary"><AIProviderLogo provider={enabledProviders.find(provider => provider.name === lastTarget) || enabledProviders[0]} className="setup-default-logo"/><span><strong>{enabledProviders.find(provider => provider.name === lastTarget)?.name || enabledProviders[0].name}</strong><small>{providers[lastTarget]?.role || enabledProviders[0].role}</small></span></div>}
+        <label className="recommendation-toggle"><input type="checkbox" checked={recommendations} onChange={event => setRecommendations(event.target.checked)}/><span><strong>Suggest a suitable AI for each task</strong><small>Suggestions never change the destination unless you approve them.</small></span></label>
+        <div className="setup-review-summary"><strong>Your setup</strong><span>{enabledProviders.length} providers · {profile.collaboration} agent style · {profile.detail} detail</span><small>You can change these settings later.</small></div>
+      </div>}
       {error && <div className="notice notice-error"><CircleHelp size={16}/><span>{error}</span></div>}
-      <div className="modal-actions">{!onboarding && <Button variant="ghost" type="button" onClick={onClose}>CANCEL</Button>}<Button disabled={busy || !enabledCount}>{busy ? <><span className="vv-spinner"/> SAVING PREFERENCES...</> : onboarding ? 'SAVE MY AI WORKSPACE' : 'SAVE PREFERENCES'}</Button></div>
+      <div className="modal-actions setup-wizard-actions">{step > 0 && <Button variant="ghost" type="button" onClick={() => {setStep(current => current - 1);setError('')}}>Back</Button>}{!onboarding && <Button variant="ghost" type="button" onClick={onClose}>Cancel</Button>}<Button disabled={busy || (step === 2 && !enabledProviders.length)}>{busy ? 'Saving preferences…' : step === 3 ? 'Finish setup' : 'Continue'}</Button></div>
     </form>
   </Modal>
 }
