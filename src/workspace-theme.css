@@ -500,3 +500,107 @@
   .ide-shell .ide-content-panel { padding:17px; border-radius:18px; }
   .ide-shell .ide-mobile-dock { background:rgba(255,255,255,.9); border:1px solid rgba(130,124,170,.15); box-shadow:0 -8px 28px rgba(55,45,98,.08); backdrop-filter:blur(24px); }
 }
+
+
+/* Dark plum glass explorer rail: contrasted against the bright studio canvas. */
+.ide-shell .ide-explorer {
+  background:
+    radial-gradient(ellipse at 2% 0%, rgba(122,91,223,.24), transparent 36%),
+    radial-gradient(ellipse at 100% 88%, rgba(61,184,202,.11), transparent 34%),
+    linear-gradient(165deg,#242039 0%,#292440 48%,#211e36 100%);
+  border-right:1px solid rgba(255,255,255,.075);
+  color:#f4f0ff;
+  box-shadow:10px 0 34px rgba(36,30,66,.075);
+}
+.ide-shell .ide-explorer-title { color:rgba(230,224,255,.55); }
+.ide-shell .ide-explorer-title button,
+.ide-shell .ide-explorer-project-label button,
+.ide-shell .ide-explorer-section-head button {
+  color:rgba(231,226,255,.68);
+  border-color:transparent;
+}
+.ide-shell .ide-explorer-title button:hover,
+.ide-shell .ide-explorer-project-label button:hover,
+.ide-shell .ide-explorer-section-head button:hover {
+  color:#fff; border-color:rgba(255,255,255,.12); background:rgba(255,255,255,.09);
+}
+.ide-shell .ide-explorer-project-label { color:rgba(238,233,255,.84); }
+.ide-shell .ide-sidebar-search {
+  border-color:rgba(255,255,255,.12); background:rgba(255,255,255,.075);
+  color:rgba(231,226,255,.66); box-shadow:inset 0 1px 0 rgba(255,255,255,.045);
+}
+.ide-shell .ide-sidebar-search:focus-within {
+  border-color:rgba(164,143,255,.55); background:rgba(255,255,255,.105);
+  box-shadow:0 0 0 3px rgba(137,111,242,.13);
+}
+.ide-shell .ide-sidebar-search input { color:#fff; }
+.ide-shell .ide-sidebar-search input::placeholder { color:rgba(226,220,249,.45); }
+.ide-shell .ide-sidebar-search button { color:rgba(226,220,249,.5); }
+.ide-shell .ide-project-node { color:rgba(231,226,255,.7); border-color:transparent; }
+.ide-shell .ide-project-node:hover { border-color:rgba(255,255,255,.09); background:rgba(255,255,255,.065); }
+.ide-shell .ide-project-node.selected {
+  color:#fff; border-color:rgba(180,159,255,.29);
+  background:linear-gradient(110deg,rgba(133,100,247,.29),rgba(66,196,210,.16));
+  box-shadow:inset 3px 0 0 #a58cff,0 8px 22px rgba(12,10,28,.16),inset 0 1px 0 rgba(255,255,255,.075);
+}
+.ide-shell .ide-project-node-copy strong { color:#fbfaff; }
+.ide-shell .ide-project-node-copy small { color:rgba(228,222,249,.54); }
+.ide-shell .ide-project-count { background:rgba(255,255,255,.10); color:#d9d0ff; }
+.ide-shell .ide-sidebar-nav { scrollbar-color:rgba(202,190,255,.25) transparent; }
+.ide-shell .ide-nav-group-label { color:rgba(224,218,247,.43); }
+.ide-shell .ide-nav-item { color:rgba(236,231,251,.70); }
+.ide-shell .ide-nav-item > svg { color:rgba(206,197,238,.61); }
+.ide-shell .ide-nav-item:hover { color:#fff; background:rgba(255,255,255,.075); }
+.ide-shell .ide-nav-item.active {
+  color:#fff; border-color:rgba(182,161,255,.20);
+  background:linear-gradient(105deg,rgba(130,98,242,.30),rgba(58,191,207,.14));
+  box-shadow:inset 3px 0 0 #a68dff,0 7px 18px rgba(10,8,26,.12),inset 0 1px 0 rgba(255,255,255,.07);
+}
+.ide-shell .ide-nav-item.active > svg { color:#d6cbff; }
+.ide-shell .ide-nav-item small { background:rgba(255,255,255,.12); color:#e4dcff; }
+.ide-shell .conversation-tree-head { border-top-color:rgba(255,255,255,.10); color:rgba(224,218,247,.53); }
+.ide-shell .ide-tree-count { background:rgba(255,255,255,.10); color:rgba(236,230,255,.7); }
+.ide-shell .ide-conversation-tree { scrollbar-color:rgba(202,190,255,.25) transparent; }
+.ide-shell .ide-file-node { color:rgba(228,222,247,.68); }
+.ide-shell .ide-file-node:hover, .ide-shell .ide-file-node.selected { color:#fff; background:rgba(151,125,255,.17); }
+.ide-shell .ide-sidebar-empty { color:rgba(226,219,248,.55); }
+.ide-shell .ide-sidebar-empty button { color:#b9aaff; }
+.ide-shell .ide-explorer-footer { border-top-color:rgba(255,255,255,.10); }
+.ide-shell .ide-usage-card {
+  border-color:rgba(255,255,255,.16);
+  background:linear-gradient(115deg,rgba(124,91,227,.28),rgba(59,183,201,.17));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08);
+}
+.ide-shell .ide-usage-card span { color:rgba(228,221,255,.65); }
+.ide-shell .ide-usage-card strong { color:#fff; }
+.ide-shell .ide-usage-card button {
+  background:linear-gradient(110deg,#8565ef,#52bfd0); color:#fff; box-shadow:0 5px 13px rgba(10,8,30,.18);
+}
+.ide-shell .ide-account-row strong { color:#f8f5ff; }
+.ide-shell .ide-account-row small { color:rgba(225,219,246,.52); }
+.ide-shell .ide-account-row > button { color:rgba(226,219,248,.60); }
+.ide-shell .ide-account-row > button:hover { background:rgba(255,255,255,.09); color:#fff; }
+
+/* Long project context remains available but cannot shove the workspace below the fold. */
+.ide-shell .ide-project-heading { align-items:flex-start; }
+.ide-shell .ide-project-heading > div:first-child { min-width:0; max-width:min(760px,100%); }
+.ide-shell .ide-project-heading .ide-project-description {
+  max-width:700px; display:-webkit-box; overflow:hidden; overflow-wrap:anywhere;
+  -webkit-box-orient:vertical; -webkit-line-clamp:3; line-clamp:3; margin:0 0 4px; color:#85829a;
+}
+.ide-shell .ide-project-heading .ide-project-description.expanded {
+  display:block; overflow:visible; -webkit-line-clamp:unset; line-clamp:unset;
+}
+.ide-shell .ide-description-toggle {
+  display:inline-flex; align-items:center; gap:5px; margin:3px 0 8px; padding:4px 0;
+  border:0; background:transparent; color:#7658d9; font-size:8px; font-weight:800;
+  letter-spacing:.10em; cursor:pointer;
+}
+.ide-shell .ide-description-toggle svg { transition:transform .2s ease; }
+.ide-shell .ide-description-toggle[aria-expanded="true"] svg { transform:rotate(180deg); }
+.ide-shell .ide-description-toggle:hover { color:#35aebb; }
+.ide-shell .ide-inspector-context > p {
+  display:-webkit-box; overflow:hidden; overflow-wrap:anywhere; -webkit-box-orient:vertical;
+  -webkit-line-clamp:3; line-clamp:3; max-height:4.8em;
+}
+.ide-shell .ide-page-heading p, .ide-shell .ide-document-heading p { overflow-wrap:anywhere; }

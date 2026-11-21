@@ -550,12 +550,14 @@ function Dashboard({ session, initialPlan, onSignOut }) {
   const [sessionSummaries, setSessionSummaries] = useState([])
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [inspectorOpen, setInspectorOpen] = useState(false)
+  const [projectDescriptionExpanded, setProjectDescriptionExpanded] = useState(false)
   const [mobileAgentVisible, setMobileAgentVisible] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
   const activeProject = projects.find(p => p.id === activeProjectId) || projects[0] || null
+  useEffect(() => { setProjectDescriptionExpanded(false) }, [activeProjectId])
   const isPro = Boolean(profile?.is_pro)
   const activeSkill = skills.find(skill => skill.id === activeSkillId) || skills[0] || null
   const filteredProjects = projects.filter(p => p.title?.toLowerCase().includes(projectSearch.toLowerCase()))
@@ -1141,7 +1143,7 @@ function Dashboard({ session, initialPlan, onSignOut }) {
           {!activeProject && !busy && !['projects','inbox','preferences','connections','subscription','settings'].includes(activePane) && <div className="ide-empty-workspace"><div className="ide-empty-icon"><FolderKanban size={27}/></div><span className="ide-kicker">VIBEVAULT WORKSPACE</span><h1>Create your first project.</h1><p>Projects keep conversations, decisions and handoffs together. Import your existing AI work and continue from one place.</p><Button onClick={requestCreateProject}><Plus size={15}/> CREATE PROJECT</Button></div>}
 
           {activeProject && !busy && activePane === 'overview' && <div className="ide-page ide-overview-page">
-            <div className="ide-page-heading ide-project-heading"><div><span className="ide-kicker">PROJECT WORKSPACE</span><h1>{activeProject.title}</h1><p>{activeProject.description || 'A persistent home for the context, decisions and work behind this project.'}</p>{Array.isArray(activeProject.tags) && activeProject.tags.length > 0 && <div className="ide-project-tags">{activeProject.tags.slice(0,4).map(tag => <span key={tag}>{tag}</span>)}{activeProject.tags.length > 4 && <small>+{activeProject.tags.length - 4} more</small>}</div>}</div><div className="ide-heading-actions"><Button variant="ghost" onClick={() => setModal({ type: 'project-edit' })}><Settings2 size={14}/> PROJECT SETTINGS</Button><Button onClick={requestSaveConversation}><Upload size={14}/> IMPORT CONTEXT</Button></div></div>
+            <div className="ide-page-heading ide-project-heading"><div><span className="ide-kicker">PROJECT WORKSPACE</span><h1>{activeProject.title}</h1><p className={'ide-project-description ' + (projectDescriptionExpanded ? 'expanded' : '')}>{activeProject.description || 'A persistent home for the context, decisions and work behind this project.'}</p>{(activeProject.description || '').length > 180 && <button type="button" className="ide-description-toggle" aria-expanded={projectDescriptionExpanded} onClick={() => setProjectDescriptionExpanded(value => !value)}>{projectDescriptionExpanded ? 'SHOW LESS' : 'READ FULL PROJECT DESCRIPTION'} <ChevronDown size={12}/></button>}{Array.isArray(activeProject.tags) && activeProject.tags.length > 0 && <div className="ide-project-tags">{activeProject.tags.slice(0,4).map(tag => <span key={tag}>{tag}</span>)}{activeProject.tags.length > 4 && <small>+{activeProject.tags.length - 4} more</small>}</div>}</div><div className="ide-heading-actions"><Button variant="ghost" onClick={() => setModal({ type: 'project-edit' })}><Settings2 size={14}/> PROJECT SETTINGS</Button><Button onClick={requestSaveConversation}><Upload size={14}/> IMPORT CONTEXT</Button></div></div>
             <section className="ide-project-launchpad"><div className="ide-launchpad-copy"><span className="ide-kicker">PROJECT CONTROL</span><strong>Pick up where your work left off.</strong><small>Keep the original context close, then choose the next useful action.</small></div><div className="ide-launchpad-actions"><button onClick={() => setModal({ type: 'handoff' })} disabled={!activeSkill}><Workflow size={17}/><span><strong>Prepare handoff</strong><small>Build an AGENT.md</small></span><ArrowUpRight size={15}/></button><button onClick={requestSaveConversation}><Upload size={17}/><span><strong>Import context</strong><small>Add a conversation</small></span><ArrowUpRight size={15}/></button></div></section>
             <div className="ide-stat-grid">
               <WorkspaceStat icon={MessageSquareText} label="CONVERSATIONS" value={projectConversations.length} detail="preserved threads"/>
