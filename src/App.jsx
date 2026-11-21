@@ -596,7 +596,7 @@ function Dashboard({ session, initialPlan, onSignOut }) {
         setProjects(projectRes.data || [])
         setConversations(convoRes.data || [])
         let nextSkills = skillRes.data || []
-        // Existing accounts created before the default-skill trigger receive the templates on first load.
+        // Provision default agent roles after authentication so optional role seeding never blocks signup.
         if (nextSkills.length === 0) {
           const defaults = DEFAULT_SKILLS.map(skill => ({ ...skill, user_id: user.id }))
           const { data: insertedSkills, error: insertSkillsError } = await supabase.from('agent_skills').insert(defaults).select()
