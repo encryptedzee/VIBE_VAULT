@@ -13,7 +13,7 @@ async function sha256(value: string) {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 const tools = [
-  { name: "list_projects", description: "List the connected user's VibeVault projects.", inputSchema: { type: "object", properties: {}, additionalProperties: false } },
+  { name: "list_projects", description: "List the connected user's VibeVault projects and saved AI agents. Before importing or exporting, ask the user to confirm the destination project. Show the saved agent name and its purpose; ask only for confirmation unless the user manually chooses another AI, in which case ask for the task purpose too.", inputSchema: { type: "object", properties: {}, additionalProperties: false } },
   { name: "search_conversations", description: "Search the user's preserved conversations by text and optional project.", inputSchema: { type: "object", properties: { query: { type: "string" }, project_id: { type: "string" }, limit: { type: "integer", minimum: 1, maximum: 20 } }, required: ["query"], additionalProperties: false } },
   { name: "get_project_context", description: "Retrieve project description, rules, approved decisions, open questions, session summaries and recent conversation references.", inputSchema: { type: "object", properties: { project_id: { type: "string" } }, required: ["project_id"], additionalProperties: false } },
   { name: "get_handoff_context", description: "Prepare a project-specific context bundle for continuing work in this AI application.", inputSchema: { type: "object", properties: { project_id: { type: "string" }, task: { type: "string" } }, required: ["project_id"], additionalProperties: false } },
@@ -62,9 +62,15 @@ Deno.serve(async (req) => {
     const content = (value: unknown) => ({ content: [{ type: "text", text: typeof value === "string" ? value : JSON.stringify(value, null, 2) }] });
     try {
       if (name === "list_projects") {
-        const { data, error } = await admin.from("projects").select("id,title,description,updated_at").eq("user_id", integration.user_id).order("updated_at", { ascending: false }).limit(100);
-        if (error) throw error;
-        return respond(content(data || []));
+        const [projectResult, profileResult] = await Promise.all([
+          admin.from("projects").select("id,title,description,updated_at").eq("user_id", integration.user_id).order("updated_at", { ascending: false }).limit(100),
+          admin.from("profiles").select("ai_preferences").eq("id", integration.user_id).maybeSingle()
+        ]);
+        if (projectResult.error) throw projectResult.error;
+        if (profileResult.error) throw profileResult.error;
+        const preferences = profileResult.data?.ai_preferences || {};
+        const savedAgents = Object.entries(preferences.providers || {}).filter(([, value]: [string, any]) => value?.enabled).map(([name, value]: [string, any]) => ({ name, purpose: value.role || "" }));
+        return respond(content({ projects: projectResult.data || [], saved_agents: savedAgents, default_agent: preferences.last_target || null, routing_note: "Ask the user to confirm the destination project. If using a saved agent, show its name and ask for confirmation. If they manually choose a different agent, ask what it should be used for." }));
       }
       if (name === "search_conversations") {
         const query = String(args.query || "").trim();
