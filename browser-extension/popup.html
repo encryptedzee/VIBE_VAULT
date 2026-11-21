@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VibeVault Capture</title><link rel="stylesheet" href="popup.css"></head>
+<body>
+  <header><span class="mark">VV</span><div><strong>VIBEVAULT</strong><small>CONVERSATION CAPTURE</small></div><button id="settingsToggle" class="icon" title="Settings">⚙</button></header>
+  <main>
+    <div class="provider"><span id="providerIcon">●</span><div><strong id="providerName">Checking current tab…</strong><small id="pageStatus">Open a ChatGPT, Claude or Gemini conversation.</small></div></div>
+    <section id="captureSection">
+      <p>Capture the conversation currently open in this tab. It will be sent to your VibeVault Import Inbox for review before being added to a project.</p>
+      <button id="captureButton" class="primary">CAPTURE THIS CONVERSATION</button>
+    </section>
+    <section id="settingsSection" hidden>
+      <label>SUPABASE PROJECT URL<input id="supabaseUrl" placeholder="https://your-project.supabase.co"></label>
+      <label>SUPABASE ANON KEY<input id="anonKey" placeholder="Public anon key"></label>
+      <label>VIBEVAULT CAPTURE TOKEN<input id="captureToken" type="password" placeholder="vv_capture_…"></label>
+      <button id="saveSettings" class="primary">SAVE CONNECTION</button>
+      <small class="hint">The token is stored in this browser profile and can be revoked from VibeVault → Connections. Never share it.</small>
+    </section>
+    <div id="status" role="status"></div>
+  </main>
+  <footer>YOUR ORIGINAL THREAD · YOUR CONTROL</footer>
+  <script src="popup.js"></script>
+</body></html>

@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "VibeVault Conversation Capture",
+  "version": "1.0.0",
+  "description": "Capture the AI conversation you are viewing and send it to your private VibeVault Import Inbox.",
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": [
+    "https://*.supabase.co/functions/v1/capture-conversation"
+  ],
+  "action": {
+    "default_title": "Capture to VibeVault",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://claude.ai/*",
+        "https://gemini.google.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

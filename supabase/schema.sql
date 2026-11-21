@@ -229,3 +229,172 @@ for each row execute function public.enforce_starter_limits();
 drop trigger if exists conversations_enforce_starter_limits on public.conversations;
 create trigger conversations_enforce_starter_limits before insert on public.conversations
 for each row execute function public.enforce_starter_limits();
+
+
+-- VibeVault Continuity, Import, and Integration Layer (2026-11-21)
+-- Re-run this file in the Supabase SQL Editor after deploying the matching Edge Functions.
+
+alter table public.profiles
+  add column if not exists ai_preferences jsonb not null default '{"providers":{},"last_target":"Claude","recommendations":false}'::jsonb,
+  add column if not exists onboarding_completed boolean not null default false;
+
+alter table public.conversations
+  add column if not exists source_url text,
+  add column if not exists source_payload jsonb,
+  add column if not exists capture_metadata jsonb not null default '{}'::jsonb;
+
+alter table public.conversations drop constraint if exists conversations_source_ai_check;
+alter table public.conversations add constraint conversations_source_ai_check
+  check (source_ai in ('Claude','ChatGPT','Gemini','Cursor','Windsurf','Perplexity','DeepSeek','Lovable','Base44','Trae','Qoder','Other'));
+
+-- A dedicated review inbox prevents browser captures from silently entering a project.
+create table if not exists public.capture_inbox (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  source_ai text not null check (source_ai in ('Claude','ChatGPT','Gemini','Cursor','Windsurf','Perplexity','DeepSeek','Lovable','Base44','Trae','Qoder','Other')),
+  title text not null check (char_length(title) between 1 and 180),
+  raw_content text not null check (char_length(raw_content) between 1 and 2000000),
+  source_url text,
+  capture_metadata jsonb not null default '{}'::jsonb,
+  status text not null default 'pending' check (status in ('pending','imported','archived')),
+  project_id uuid references public.projects(id) on delete set null,
+  imported_conversation_id uuid references public.conversations(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- Integration credentials are stored as SHA-256 hashes. Plaintext tokens are shown once.
+create table if not exists public.integration_tokens (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  label text not null,
+  scope text not null check (scope in ('capture','mcp')),
+  token_hash text not null unique check (char_length(token_hash) = 64),
+  last_used_at timestamptz,
+  revoked_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.project_decisions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  project_id uuid not null references public.projects(id) on delete cascade,
+  category text not null default 'decision' check (category in ('decision','open_question')),
+  title text not null check (char_length(title) between 1 and 180),
+  content text not null check (char_length(content) between 1 and 30000),
+  status text not null default 'approved' check (status in ('approved','proposed','open','resolved','superseded')),
+  source_ai text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint project_decisions_project_owner_fk foreign key (project_id, user_id)
+    references public.projects(id, user_id) on delete cascade
+);
+
+create table if not exists public.session_summaries (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  project_id uuid not null references public.projects(id) on delete cascade,
+  title text not null check (char_length(title) between 1 and 180),
+  summary text not null check (char_length(summary) between 1 and 30000),
+  source_ai text,
+  created_at timestamptz not null default now(),
+  constraint session_summaries_project_owner_fk foreign key (project_id, user_id)
+    references public.projects(id, user_id) on delete cascade
+);
+
+create index if not exists capture_inbox_user_status_idx on public.capture_inbox(user_id, status, created_at desc);
+create index if not exists integration_tokens_hash_idx on public.integration_tokens(token_hash) where revoked_at is null;
+create index if not exists project_decisions_project_created_idx on public.project_decisions(user_id, project_id, created_at desc);
+create index if not exists session_summaries_project_created_idx on public.session_summaries(user_id, project_id, created_at desc);
+
+drop trigger if exists capture_inbox_set_updated_at on public.capture_inbox;
+create trigger capture_inbox_set_updated_at before update on public.capture_inbox
+for each row execute function public.set_updated_at();
+drop trigger if exists project_decisions_set_updated_at on public.project_decisions;
+create trigger project_decisions_set_updated_at before update on public.project_decisions
+for each row execute function public.set_updated_at();
+
+alter table public.capture_inbox enable row level security;
+alter table public.integration_tokens enable row level security;
+alter table public.project_decisions enable row level security;
+alter table public.session_summaries enable row level security;
+
+-- SECURITY DEFINER ownership check avoids invoking projects RLS recursively from child-table policies.
+create or replace function public.user_owns_project(target_project_id uuid, target_user_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.projects p
+    where p.id = target_project_id and p.user_id = target_user_id
+  );
+$$;
+revoke all on function public.user_owns_project(uuid, uuid) from public;
+grant execute on function public.user_owns_project(uuid, uuid) to authenticated;
+
+drop policy if exists "conversations_insert_own" on public.conversations;
+create policy "conversations_insert_own" on public.conversations
+  for insert to authenticated
+  with check (user_id = (select auth.uid()) and public.user_owns_project(project_id, (select auth.uid())));
+
+drop policy if exists "handoffs_insert_own" on public.handoffs;
+create policy "handoffs_insert_own" on public.handoffs
+  for insert to authenticated
+  with check (user_id = (select auth.uid()) and public.user_owns_project(project_id, (select auth.uid())));
+
+drop policy if exists "capture_inbox_select_own" on public.capture_inbox;
+create policy "capture_inbox_select_own" on public.capture_inbox for select to authenticated
+  using (user_id = (select auth.uid()));
+drop policy if exists "capture_inbox_update_own" on public.capture_inbox;
+create policy "capture_inbox_update_own" on public.capture_inbox for update to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+drop policy if exists "capture_inbox_delete_own" on public.capture_inbox;
+create policy "capture_inbox_delete_own" on public.capture_inbox for delete to authenticated
+  using (user_id = (select auth.uid()));
+
+drop policy if exists "integration_tokens_select_own" on public.integration_tokens;
+create policy "integration_tokens_select_own" on public.integration_tokens for select to authenticated
+  using (user_id = (select auth.uid()));
+drop policy if exists "integration_tokens_insert_own" on public.integration_tokens;
+create policy "integration_tokens_insert_own" on public.integration_tokens for insert to authenticated
+  with check (user_id = (select auth.uid()));
+drop policy if exists "integration_tokens_update_own" on public.integration_tokens;
+create policy "integration_tokens_update_own" on public.integration_tokens for update to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+drop policy if exists "integration_tokens_delete_own" on public.integration_tokens;
+create policy "integration_tokens_delete_own" on public.integration_tokens for delete to authenticated
+  using (user_id = (select auth.uid()));
+
+drop policy if exists "project_decisions_select_own" on public.project_decisions;
+create policy "project_decisions_select_own" on public.project_decisions for select to authenticated
+  using (user_id = (select auth.uid()));
+drop policy if exists "project_decisions_insert_own" on public.project_decisions;
+create policy "project_decisions_insert_own" on public.project_decisions for insert to authenticated
+  with check (user_id = (select auth.uid()) and public.user_owns_project(project_id, (select auth.uid())));
+drop policy if exists "project_decisions_update_own" on public.project_decisions;
+create policy "project_decisions_update_own" on public.project_decisions for update to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+drop policy if exists "project_decisions_delete_own" on public.project_decisions;
+create policy "project_decisions_delete_own" on public.project_decisions for delete to authenticated
+  using (user_id = (select auth.uid()));
+
+drop policy if exists "session_summaries_select_own" on public.session_summaries;
+create policy "session_summaries_select_own" on public.session_summaries for select to authenticated
+  using (user_id = (select auth.uid()));
+drop policy if exists "session_summaries_insert_own" on public.session_summaries;
+create policy "session_summaries_insert_own" on public.session_summaries for insert to authenticated
+  with check (user_id = (select auth.uid()) and public.user_owns_project(project_id, (select auth.uid())));
+drop policy if exists "session_summaries_update_own" on public.session_summaries;
+create policy "session_summaries_update_own" on public.session_summaries for update to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+drop policy if exists "session_summaries_delete_own" on public.session_summaries;
+create policy "session_summaries_delete_own" on public.session_summaries for delete to authenticated
+  using (user_id = (select auth.uid()));
+
+grant select, insert, update, delete on public.capture_inbox, public.integration_tokens,
+  public.project_decisions, public.session_summaries to authenticated;
+grant update (ai_preferences, onboarding_completed) on public.profiles to authenticated;
+

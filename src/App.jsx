@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
-  ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, Check, CheckCircle2, ChevronDown,
+  ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, Archive, Check, CheckCircle2, ChevronDown,
   ChevronRight, CircleHelp, Clipboard, Cloud, Code2, Command, Download, FileCode2,
-  FileText, FolderKanban, KeyRound, Layers3, LogOut, Menu, Plus, Search, Settings2,
-  ShieldCheck, Sparkles, X
+  FileJson, FileText, FolderKanban, Inbox, KeyRound, Layers3, LogOut, Menu, Plus, Plug,
+  Search, Settings2, ShieldCheck, Sparkles, Upload, X
 } from 'lucide-react'
 import { hasSupabaseConfig, supabase } from './lib/supabase'
 
@@ -13,13 +13,84 @@ const LIFETIME_CHECKOUT_URL = import.meta.env.VITE_LIFETIME_CHECKOUT_URL || ''
 const LIPA_NAMBA = import.meta.env.VITE_LIPA_NAMBA || ''
 const LIPA_NAME = import.meta.env.VITE_LIPA_NAME || ''
 
-const SOURCE_AIS = ['ALL', 'CLAUDE', 'CHATGPT', 'LOVABLE', 'BASE44', 'TRAE', 'QODER', 'GEMINI']
-const TARGET_AIS = ['Claude', 'ChatGPT', 'Lovable', 'Base44', 'Trae', 'Qoder', 'Gemini', 'Other']
+const SOURCE_AIS = ['ALL', 'CLAUDE', 'CHATGPT', 'GEMINI', 'CURSOR', 'WINDSURF', 'PERPLEXITY', 'DEEPSEEK', 'LOVABLE', 'BASE44', 'TRAE', 'QODER', 'OTHER']
+const TARGET_AIS = ['Claude', 'ChatGPT', 'Gemini', 'Cursor', 'Windsurf', 'Perplexity', 'DeepSeek', 'Lovable', 'Base44', 'Trae', 'Qoder', 'Other']
 const DEFAULT_SKILLS = [
   { role_name: 'Backend Architect', instructions: 'Design reliable APIs, data models, authorization and backend services. Explain trade-offs before implementation.', is_default: true },
   { role_name: 'UI Designer', instructions: 'Translate product intent into precise, accessible interfaces. Preserve the existing design system and responsive behavior.', is_default: true },
   { role_name: 'Image Prompt Engineer', instructions: 'Turn the supplied visual direction into detailed, production-ready image generation prompts. Preserve all constraints.', is_default: true }
 ]
+
+const AI_PROVIDERS = [
+  { name: 'Claude', logo: 'https://cdn.simpleicons.org/anthropic/D97757', description: 'Development, reasoning and long-form work', role: 'Development partner' },
+  { name: 'ChatGPT', logo: 'https://cdn.simpleicons.org/openai/FFFFFF', description: 'Planning, analysis and general assistance', role: 'Research & planning' },
+  { name: 'Gemini', logo: 'https://cdn.simpleicons.org/googlegemini/8E75B2', description: 'Research and multimodal workflows', role: 'Research & multimodal' },
+  { name: 'Cursor', logo: 'https://cdn.simpleicons.org/cursor/FFFFFF', description: 'Code editing and implementation', role: 'IDE implementation' },
+  { name: 'Windsurf', logo: 'https://cdn.simpleicons.org/windsurf/00A3FF', description: 'Agentic coding workflows', role: 'Coding agent' },
+  { name: 'Perplexity', logo: 'https://cdn.simpleicons.org/perplexity/20B8CD', description: 'Web research and source discovery', role: 'Web researcher' },
+  { name: 'DeepSeek', logo: 'https://cdn.simpleicons.org/deepseek/4D6BFE', description: 'Technical reasoning and problem solving', role: 'Reasoning specialist' },
+  { name: 'Lovable', logo: 'https://cdn.simpleicons.org/lovable/FF69B4', description: 'Prompt-to-app product building', role: 'App builder' },
+  { name: 'Base44', logo: '', description: 'No-code and AI app building', role: 'App builder' },
+  { name: 'Trae', logo: '', description: 'AI-assisted development environment', role: 'Coding assistant' },
+  { name: 'Qoder', logo: '', description: 'Agentic software development', role: 'Coding agent' },
+  { name: 'Other', logo: '', description: 'A provider not listed here', role: 'General assistant' }
+]
+const EMPTY_AI_PREFERENCES = { providers: {}, last_target: 'Claude', recommendations: false }
+
+function readArchiveMessageContent(content) {
+  if (typeof content === 'string') return content
+  if (!content) return ''
+  if (Array.isArray(content)) return content.map(readArchiveMessageContent).filter(Boolean).join('\n')
+  if (Array.isArray(content.parts)) return content.parts.map(readArchiveMessageContent).filter(Boolean).join('\n')
+  if (typeof content.text === 'string') return content.text
+  if (typeof content.value === 'string') return content.value
+  return ''
+}
+
+function parseImportedConversations(raw, filename, fallbackSource = 'ChatGPT') {
+  const extension = (filename || '').split('.').pop()?.toLowerCase()
+  if (extension === 'json' || extension === 'jsonl' || /^[\s]*[\[{]/.test(raw)) {
+    try {
+      const parsed = extension === 'jsonl'
+        ? raw.split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line))
+        : JSON.parse(raw)
+      const records = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.conversations) ? parsed.conversations : [parsed]
+      const mapped = records.map((item, index) => {
+        const messages = []
+        if (item?.mapping && typeof item.mapping === 'object') {
+          Object.values(item.mapping).forEach(node => {
+            const message = node?.message
+            if (!message) return
+            const role = message.author?.role || message.author?.name || 'message'
+            const body = readArchiveMessageContent(message.content)
+            if (body.trim()) messages.push({ role, body, time: message.create_time || 0 })
+          })
+        } else if (Array.isArray(item?.messages)) {
+          item.messages.forEach(message => {
+            const role = message.role || message.author?.role || message.author || 'message'
+            const body = readArchiveMessageContent(message.content ?? message.text ?? message.parts)
+            if (body.trim()) messages.push({ role, body, time: message.timestamp || message.create_time || 0 })
+          })
+        }
+        messages.sort((a, b) => Number(a.time || 0) - Number(b.time || 0))
+        if (!messages.length) return null
+        const title = String(item.title || item.name || 'Imported conversation ' + (index + 1)).slice(0, 180)
+        const transcript = messages.map(message => '## ' + String(message.role).toUpperCase() + '\n' + message.body).join('\n\n')
+        return {
+          title, source_ai: fallbackSource, raw_content: transcript,
+          tags: ['archive-import'], source_payload: item,
+          capture_metadata: { import_method: 'json_archive', message_count: messages.length, original_filename: filename || '' }
+        }
+      }).filter(Boolean)
+      if (mapped.length) return mapped
+    } catch (error) {
+      throw new Error('This JSON file could not be parsed. Export the conversation again or use a plain-text / Markdown file.')
+    }
+  }
+  if (!raw.trim()) throw new Error('The selected file is empty.')
+  const name = (filename || 'Imported conversation').replace(/\.[^.]+$/, '').slice(0, 180)
+  return [{ title: name || 'Imported conversation', source_ai: fallbackSource, raw_content: raw, tags: ['file-import'], source_payload: null, capture_metadata: { import_method: 'file', original_filename: filename || '' } }]
+}
 
 function Reveal({ children, delay = 0, className = '' }) {
   const node = useRef(null)
@@ -311,6 +382,11 @@ function Dashboard({ session, initialPlan, onSignOut }) {
   const [bundleModes, setBundleModes] = useState({})
   const [cleaningId, setCleaningId] = useState(null)
   const [refreshingPlan, setRefreshingPlan] = useState(false)
+  const [captureInbox, setCaptureInbox] = useState([])
+  const [integrationTokens, setIntegrationTokens] = useState([])
+  const [providerPreferences, setProviderPreferences] = useState(EMPTY_AI_PREFERENCES)
+  const [generatedToken, setGeneratedToken] = useState('')
+  const [showTechnicalHandoff, setShowTechnicalHandoff] = useState(false)
 
   const activeProject = projects.find(p => p.id === activeProjectId) || projects[0] || null
   const isPro = Boolean(profile?.is_pro)
@@ -332,14 +408,16 @@ function Dashboard({ session, initialPlan, onSignOut }) {
     const load = async () => {
       setBusy(true)
       try {
-        const [profileRes, projectRes, convoRes, skillRes, handoffRes] = await Promise.all([
+        const [profileRes, projectRes, convoRes, skillRes, handoffRes, inboxRes, tokenRes] = await Promise.all([
           supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
           supabase.from('projects').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
           supabase.from('conversations').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
           supabase.from('agent_skills').select('*').eq('user_id', user.id).order('created_at', { ascending: true }),
-          supabase.from('handoffs').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(50)
+          supabase.from('handoffs').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(50),
+          supabase.from('capture_inbox').select('*').eq('user_id', user.id).eq('status', 'pending').order('created_at', { ascending: false }),
+          supabase.from('integration_tokens').select('id,label,scope,created_at,last_used_at,revoked_at').eq('user_id', user.id).order('created_at', { ascending: false })
         ])
-        for (const result of [profileRes, projectRes, convoRes, skillRes, handoffRes]) if (result.error) throw result.error
+        for (const result of [profileRes, projectRes, convoRes, skillRes, handoffRes, inboxRes, tokenRes]) if (result.error) throw result.error
         if (!mounted) return
         let nextProfile = profileRes.data
         if (!nextProfile) {
@@ -348,6 +426,11 @@ function Dashboard({ session, initialPlan, onSignOut }) {
           nextProfile = data
         }
         setProfile(nextProfile)
+        setProviderPreferences(nextProfile.ai_preferences || EMPTY_AI_PREFERENCES)
+        setTargetAi(nextProfile.ai_preferences?.last_target || 'Claude')
+        if (!nextProfile.onboarding_completed) setModal({ type: 'ai', onboarding: true })
+        setIntegrationTokens(tokenRes.data || [])
+        setCaptureInbox(inboxRes.data || [])
         setProjects(projectRes.data || [])
         setConversations(convoRes.data || [])
         let nextSkills = skillRes.data || []
@@ -399,11 +482,12 @@ function Dashboard({ session, initialPlan, onSignOut }) {
   }
 
   function requestSaveConversation() {
+    if (!activeProject) { showToast('Create or select a project before importing a conversation.'); return }
     if (!isPro && conversations.length >= 3) {
       setModal({ type: 'upgrade', plan: 'pro', message: 'Starter Vault limit reached (3/3 Convos). Upgrade to keep vaulting your AI brain.' })
       return
     }
-    setModal({ type: 'conversation' })
+    setModal({ type: 'import' })
   }
 
   function requestCreateSkill() {
@@ -437,6 +521,115 @@ function Dashboard({ session, initialPlan, onSignOut }) {
     setConversations(current => [data, ...current]); setModal(null); showToast('Raw conversation saved exactly as submitted.')
   }
 
+  async function saveImportedConversations(items) {
+    if (!activeProject) throw new Error('Create or select a project before importing conversations.')
+    if (!isPro && conversations.length + items.length > 3) {
+      setModal({ type: 'upgrade', plan: 'pro', message: 'This import exceeds the Starter Vault conversation limit. Upgrade to import the full archive.' })
+      return
+    }
+    const rows = items.map(item => ({
+      project_id: activeProject.id, user_id: user.id,
+      title: String(item.title || 'Imported conversation').slice(0, 180),
+      source_ai: item.source_ai || 'Other', raw_content: item.raw_content || '', cleaned_spec: '',
+      tags: item.tags || ['imported'], image_urls: [], source_url: item.source_url || null,
+      source_payload: item.source_payload || null,
+      capture_metadata: item.capture_metadata || { import_method: 'manual' }
+    }))
+    const inserted = []
+    for (let index = 0; index < rows.length; index += 40) {
+      const { data, error } = await supabase.from('conversations').insert(rows.slice(index, index + 40)).select()
+      if (error) throw error
+      inserted.push(...(data || []))
+    }
+    setConversations(current => [...inserted, ...current])
+    setModal(null)
+    showToast(inserted.length + ' conversation' + (inserted.length === 1 ? '' : 's') + ' imported and preserved.')
+  }
+
+  async function importCapture(capture, projectId) {
+    if (!projectId) throw new Error('Choose a project for this captured conversation.')
+    const project = projects.find(item => item.id === projectId)
+    if (!project) throw new Error('The selected project is unavailable.')
+    if (!isPro && conversations.length >= 3) {
+      setModal({ type: 'upgrade', plan: 'pro', message: 'Starter Vault limit reached (3/3 Convos). Upgrade to import this capture.' })
+      return
+    }
+    const { data, error } = await supabase.from('conversations').insert({
+      user_id: user.id, project_id: projectId, title: capture.title || 'Captured conversation',
+      source_ai: capture.source_ai || 'Other', raw_content: capture.raw_content,
+      tags: ['browser-capture'], source_url: capture.source_url || null,
+      capture_metadata: capture.capture_metadata || { import_method: 'browser_extension' }
+    }).select().single()
+    if (error) throw error
+    const { error: updateError } = await supabase.from('capture_inbox').update({
+      status: 'imported', project_id: projectId, imported_conversation_id: data.id
+    }).eq('id', capture.id).eq('user_id', user.id)
+    if (updateError) throw updateError
+    setConversations(current => [data, ...current])
+    setCaptureInbox(current => current.filter(item => item.id !== capture.id))
+    showToast('Captured conversation added to ' + project.title + '.')
+  }
+
+  async function discardCapture(captureId) {
+    const { error } = await supabase.from('capture_inbox').delete().eq('id', captureId).eq('user_id', user.id)
+    if (error) throw error
+    setCaptureInbox(current => current.filter(item => item.id !== captureId))
+    showToast('Capture discarded.')
+  }
+
+  async function saveAiPreferences(nextPreferences) {
+    const enabled = Object.entries(nextPreferences.providers || {}).filter(([, value]) => value?.enabled)
+    if (!enabled.length) throw new Error('Choose at least one AI provider to continue.')
+    const lastTarget = enabled.some(([name]) => name === nextPreferences.last_target) ? nextPreferences.last_target : enabled[0][0]
+    const saved = { ...nextPreferences, last_target: lastTarget }
+    const { data, error } = await supabase.from('profiles').update({ ai_preferences: saved, onboarding_completed: true }).eq('id', user.id).select().single()
+    if (error) throw error
+    setProfile(data); setProviderPreferences(saved); setTargetAi(lastTarget); setModal(null)
+    showToast('AI workspace preferences saved.')
+  }
+
+  async function createIntegrationToken(scope) {
+    const random = crypto.getRandomValues(new Uint8Array(32))
+    const encoded = btoa(String.fromCharCode(...random)).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/g, '')
+    const token = 'vv_' + scope + '_' + encoded
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))
+    const tokenHash = Array.from(new Uint8Array(digest)).map(byte => byte.toString(16).padStart(2, '0')).join('')
+    const label = scope === 'capture' ? 'Browser Capture Extension' : 'MCP Server Connection'
+    const { data, error } = await supabase.from('integration_tokens').insert({ user_id: user.id, label, scope, token_hash: tokenHash }).select('id,label,scope,created_at,last_used_at,revoked_at').single()
+    if (error) throw error
+    setIntegrationTokens(current => [data, ...current]); setGeneratedToken(token)
+    showToast(label + ' token created. Copy it now; it is only shown once.')
+  }
+
+  async function revokeIntegrationToken(tokenId) {
+    const revokedAt = new Date().toISOString()
+    const { error } = await supabase.from('integration_tokens').update({ revoked_at: revokedAt }).eq('id', tokenId).eq('user_id', user.id)
+    if (error) throw error
+    setIntegrationTokens(current => current.map(item => item.id === tokenId ? { ...item, revoked_at: revokedAt } : item))
+    showToast('Integration token revoked.')
+  }
+
+  async function exportProject() {
+    if (!activeProject) { showToast('Select a project before exporting.'); return }
+    const [decisionRes, sessionRes] = await Promise.all([
+      supabase.from('project_decisions').select('*').eq('project_id', activeProject.id).eq('user_id', user.id).order('created_at', { ascending: true }),
+      supabase.from('session_summaries').select('*').eq('project_id', activeProject.id).eq('user_id', user.id).order('created_at', { ascending: true })
+    ])
+    if (decisionRes.error) throw decisionRes.error
+    if (sessionRes.error) throw sessionRes.error
+    const bundle = {
+      format: 'vibevault-project-export', version: 1, exported_at: new Date().toISOString(),
+      project: activeProject, conversations: conversations.filter(item => item.project_id === activeProject.id),
+      decisions: decisionRes.data || [], session_summaries: sessionRes.data || [],
+      handoffs: handoffs.filter(item => item.project_id === activeProject.id), ai_preferences: providerPreferences
+    }
+    const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json;charset=utf-8' })
+    const url = URL.createObjectURL(blob); const anchor = document.createElement('a')
+    anchor.href = url; anchor.download = (activeProject.title || 'vibevault-project').toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-vibevault-export.json'
+    document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url)
+    showToast('Project export prepared.')
+  }
+
   async function createSkill(values) {
     if (!isPro) {
       setModal({ type: 'upgrade', plan: 'pro', message: 'Unlimited custom AGENT.md roles are included with Pro.' })
@@ -457,13 +650,14 @@ function Dashboard({ session, initialPlan, onSignOut }) {
   function makeAgentMd(targetOverride = targetAi) {
     const projectRules = activeProject?.project_rules?.trim() || 'No project-specific rules have been added yet.'
     const style = profile?.global_style?.trim() || 'No global style preferences have been set.'
+    const providerRole = providerPreferences.providers?.[targetOverride]?.role || 'No provider-specific role preference set.'
     const convoContext = selectedConversations.map((conversation, index) => {
       const useClean = isPro && bundleModes[conversation.id] === 'clean' && conversation.cleaned_spec
       const sourceLabel = useClean ? 'CLEANED SPEC' : 'RAW THREAD'
       const body = useClean ? conversation.cleaned_spec : conversation.raw_content
       return `## Conversation ${index + 1}: ${conversation.title}\nSource: ${conversation.source_ai}\nTags: ${(conversation.tags || []).join(', ') || 'None'}\nContext mode: ${sourceLabel}\n\n${body}`
     }).join('\n\n---\n\n')
-    return `# AGENT.md — ${activeProject?.title || 'Untitled Project'}\n\n## HANDOFF TARGET\n${targetOverride}\n\n## ASSIGNED ROLE\n${activeSkill?.role_name || 'General Assistant'}\n\n## ROLE INSTRUCTIONS\n${activeSkill?.instructions || 'Act as a careful, context-aware collaborator. Ask before making assumptions.'}\n\n## GLOBAL WORKING STYLE\n${style}\n\n## PROJECT DESCRIPTION\n${activeProject?.description || 'No project description supplied.'}\n\n## PROJECT RULES\n${projectRules}\n\n## BUNDLED SOURCE MATERIAL\n${convoContext || 'No raw conversations selected. Do not invent missing context.'}\n\n## MANDATORY 3-POINT CONFIRMATION — DO THIS BEFORE WRITING CODE\n1. **Confirm the role:** State that you understand and accept the assigned role: ${activeSkill?.role_name || 'General Assistant'}.\n2. **Prove context transfer:** Summarize the supplied raw conversations and identify the user's actual goals, constraints and decisions without silently rewriting the source material.\n3. **Expose uncertainty:** List assumptions, contradictions and missing information. Ask focused questions where needed. Do not write or modify code until the user approves this confirmation.\n\n---\nEnd of handoff. Preserve the user's original intent and ask before changing established decisions.\n`
+    return `# AGENT.md — ${activeProject?.title || 'Untitled Project'}\n\n## HANDOFF TARGET\n${targetOverride}\n\n## AI PROVIDER ROLE\n${providerRole}\n\n## ASSIGNED TASK ROLE\n${activeSkill?.role_name || 'General Assistant'}\n\n## ROLE INSTRUCTIONS\n${activeSkill?.instructions || 'Act as a careful, context-aware collaborator. Ask before making assumptions.'}\n\n## GLOBAL WORKING STYLE\n${style}\n\n## PROJECT DESCRIPTION\n${activeProject?.description || 'No project description supplied.'}\n\n## PROJECT RULES\n${projectRules}\n\n## BUNDLED SOURCE MATERIAL\n${convoContext || 'No raw conversations selected. Do not invent missing context.'}\n\n## MANDATORY 3-POINT CONFIRMATION — DO THIS BEFORE WRITING CODE\n1. **Confirm the role:** State that you understand and accept the assigned role: ${activeSkill?.role_name || 'General Assistant'}.\n2. **Prove context transfer:** Summarize the supplied raw conversations and identify the user's actual goals, constraints and decisions without silently rewriting the source material.\n3. **Expose uncertainty:** List assumptions, contradictions and missing information. Ask focused questions where needed. Do not write or modify code until the user approves this confirmation.\n\n---\nEnd of handoff. Preserve the user's original intent and ask before changing established decisions.\n`
   }
 
   async function saveHandoff(copyToClipboard = true, targetOverride = targetAi, contentOverride = null) {
@@ -511,10 +705,11 @@ function Dashboard({ session, initialPlan, onSignOut }) {
   }
 
   const currentPlan = isPro ? 'PRO' : 'STARTER'
+  const selectedProvider = AI_PROVIDERS.find(provider => provider.name === targetAi) || AI_PROVIDERS[0]
   return <main className="dashboard-shell">
     <header className="control-bar">
       <div className="control-brand"><Brand/><StatusLine>VAULT SYNCED</StatusLine><span className="control-project-name">/ {activeProject?.title || 'NO PROJECT SELECTED'}</span></div>
-      <div className="control-actions"><span className={`plan-chip ${isPro ? 'pro-chip' : ''}`}>{currentPlan}</span><Button variant="ghost" className="small-ghost" onClick={() => setModal({ type: 'style' })}><Settings2 size={15}/> MY GLOBAL STYLE</Button><Button variant="ghost" className="small-ghost" onClick={onSignOut}><LogOut size={15}/> SIGN OUT</Button></div>
+      <div className="control-actions"><span className={`plan-chip ${isPro ? 'pro-chip' : ''}`}>{currentPlan}</span><Button variant="ghost" className="small-ghost" onClick={() => setModal({ type: 'ai' })}><Layers3 size={15}/> AI WORKSPACE</Button><Button variant="ghost" className="small-ghost" onClick={() => { setGeneratedToken(''); setModal({ type: 'integrations' }) }}><Plug size={15}/> CONNECTIONS</Button><Button variant="ghost" className="small-ghost" onClick={() => setModal({ type: 'style' })}><Settings2 size={15}/> PREFERENCES</Button><Button variant="ghost" className="small-ghost" onClick={onSignOut}><LogOut size={15}/> SIGN OUT</Button></div>
     </header>
     <div className="workspace-mobile-tabs"><button className={mobilePanel === 'projects' ? 'active' : ''} onClick={() => setMobilePanel('projects')}>PROJECTS</button><button className={mobilePanel === 'vault' ? 'active' : ''} onClick={() => setMobilePanel('vault')}>RAW VAULT</button><button className={mobilePanel === 'handoff' ? 'active' : ''} onClick={() => setMobilePanel('handoff')}>HANDOFF</button></div>
     <div className="workspace-grid">
@@ -529,7 +724,7 @@ function Dashboard({ session, initialPlan, onSignOut }) {
       </aside>
 
       <section className={`center-vault workspace-panel ${mobilePanel === 'vault' ? 'mobile-active' : ''}`}>
-        <div className="vault-title-row"><div><span className="eyebrow">RAW CONVERSATION VAULT</span><h1 className="display workspace-title">PRESERVE THE SIGNAL.</h1><p className="workspace-subtitle">{activeProject ? activeProject.description || 'Store the exact thinking behind this project.' : 'Create a project, then save your first raw conversation.'}</p></div><Button onClick={requestSaveConversation} disabled={!activeProject || busy}><Plus size={16}/> SAVE RAW CONVO</Button></div>
+        <div className="vault-title-row"><div><span className="eyebrow">CONVERSATION VAULT</span><h1 className="display workspace-title">PRESERVE THE SIGNAL.</h1><p className="workspace-subtitle">{activeProject ? activeProject.description || 'Your original AI conversations, organized by project.' : 'Create a project, then bring your existing AI work into it.'}</p></div><div className="vault-tools"><Button variant="ghost" onClick={() => setModal({ type: 'inbox' })}><Inbox size={15}/> IMPORT INBOX {captureInbox.length ? '(' + captureInbox.length + ')' : ''}</Button><Button onClick={requestSaveConversation} disabled={!activeProject || busy}><Upload size={16}/> IMPORT CONVERSATION</Button><Button variant="ghost" onClick={() => exportProject().catch(error => showToast(error.message))} disabled={!activeProject}><Download size={15}/> EXPORT PROJECT</Button></div></div>
         <div className="source-filter-row"><div className="source-filters">{SOURCE_AIS.map(source => <button key={source} className={`filter-chip ${sourceFilter === source ? 'active' : ''}`} onClick={() => setSourceFilter(source)}>{source}</button>)}</div><span className="result-count">{visibleConversations.length} RECORDS</span></div>
         <div className="conversation-list">
           {busy && <div className="empty-state"><span className="loading-line"/><p>SYNCING YOUR VAULT...</p></div>}
@@ -547,15 +742,15 @@ function Dashboard({ session, initialPlan, onSignOut }) {
       <aside className={`right-handoff workspace-panel ${mobilePanel === 'handoff' ? 'mobile-active' : ''}`}>
         <div className="panel-heading"><span className="eyebrow">DYNAMIC HANDOFF ENGINE</span><FileCode2 size={17}/></div>
         <h2 className="display handoff-title">COMPILE THE<br/>NEXT MOVE.</h2>
-        <label className="field-label compact-label">TARGET AI<select className="field-input select-input" value={targetAi} onChange={e => setTargetAi(e.target.value)}>{TARGET_AIS.map(ai => <option key={ai}>{ai}</option>)}</select></label>
+        <div className="field-label compact-label">CHOOSE YOUR AI</div><button type="button" className="provider-choice-card" onClick={() => setModal({ type: 'ai' })}><span className="provider-logo">{selectedProvider.logo ? <img src={selectedProvider.logo} alt="" /> : selectedProvider.name.slice(0, 1)}</span><span className="provider-choice-copy"><strong>{targetAi}</strong><small>{providerPreferences.providers?.[targetAi]?.role || selectedProvider.role}</small></span><span className="provider-change">CHANGE <ChevronDown size={13}/></span></button>
         <div className="field-label compact-label">ASSIGNED ROLE</div>
         <div className="skill-select-row"><select className="field-input select-input" value={activeSkillId} onChange={e => setActiveSkillId(e.target.value)}><option value="">Select a role</option>{skills.map(skill => <option key={skill.id} value={skill.id}>{skill.role_name}</option>)}</select><button className="square-add" onClick={requestCreateSkill} aria-label="Create skill" disabled={busy}><Plus size={17}/></button></div>
         <div className="bundle-head"><span className="field-label">BUNDLE CONTEXT RECORDS</span><span>{selectedIds.length} SELECTED</span></div>
         <div className="bundle-list">{visibleConversations.map(conversation => <div key={conversation.id} className="bundle-item-row"><label className="bundle-item"><input type="checkbox" checked={selectedIds.includes(conversation.id)} onChange={() => toggleConversation(conversation.id)}/><span>{conversation.title}</span></label>{selectedIds.includes(conversation.id) && <select className="bundle-mode-select" aria-label={`Context mode for ${conversation.title}`} value={bundleModes[conversation.id] || 'raw'} disabled={!isPro} onChange={e => setBundleModes(current => ({ ...current, [conversation.id]: e.target.value }))}><option value="raw">RAW THREAD</option><option value="clean" disabled={!conversation.cleaned_spec}>CLEANED SPEC</option></select>}</div>)}{!visibleConversations.length && <span className="empty-small">No conversations available for this project.</span>}</div>
         <div className="compiled-preview-head"><span className="field-label">LIVE AGENT.MD PREVIEW</span><span className="live-tag"><span className="status-pulse"/>LIVE</span></div>
-        <pre className="compiled-preview">{makeAgentMd()}</pre>
+        <div className="handoff-context-summary"><div className="context-ready"><CheckCircle2 size={17}/><span><strong>PROJECT CONTEXT READY</strong><small>{selectedIds.length} conversation records selected · {activeSkill?.role_name || 'Choose a task role'}</small></span></div><p>VibeVault prepares the technical handoff quietly in the background. You choose the AI and task; the receiving assistant gets the project context and your saved preferences.</p><div className="context-chips"><span><FileText size={13}/> Project instructions</span><span><Archive size={13}/> Original conversations</span><span><ShieldCheck size={13}/> Saved preferences</span></div><button type="button" className="technical-toggle" onClick={() => setShowTechnicalHandoff(value => !value)}>{showTechnicalHandoff ? 'HIDE TECHNICAL HANDOFF FILE' : 'ADVANCED · VIEW TECHNICAL HANDOFF FILE'} <ChevronDown size={13}/></button>{showTechnicalHandoff && <pre className="compiled-preview">{makeAgentMd()}</pre>}</div>
         <div className="confirmation-note"><ShieldCheck size={15}/><span>Every handoff includes the required 3-point confirmation before the receiving AI writes code.</span></div>
-        <div className="handoff-actions"><Button onClick={() => saveHandoff(true)} disabled={!activeProject || !activeSkill}><Clipboard size={15}/> COPY HANDOFF</Button><Button variant="ghost" onClick={downloadHandoff} disabled={!activeProject || !activeSkill}><Download size={15}/> DOWNLOAD .MD</Button><Button variant="ghost" onClick={() => openInAI('Claude')} disabled={!activeProject || !activeSkill}>OPEN IN CLAUDE ↗</Button><Button variant="ghost" onClick={() => openInAI('ChatGPT')} disabled={!activeProject || !activeSkill}>OPEN IN CHATGPT ↗</Button></div>
+        <div className="handoff-actions"><Button onClick={() => saveHandoff(true)} disabled={!activeProject || !activeSkill}><Clipboard size={15}/> COPY HANDOFF</Button><Button variant="ghost" onClick={() => openInAI(targetAi)} disabled={!activeProject || !activeSkill}>OPEN {targetAi.toUpperCase()} ↗</Button>{showTechnicalHandoff && <Button variant="ghost" onClick={downloadHandoff} disabled={!activeProject || !activeSkill}><Download size={15}/> DOWNLOAD TECHNICAL FILE</Button>}</div>
         <div className="handoff-history"><div className="history-head"><span className="field-label">RECENT HANDOFFS</span><span>{handoffs.length}</span></div>{handoffs.slice(0, 4).map(handoff => <div className="history-item" key={handoff.id}><span><strong>{handoff.target_ai}</strong><small>{handoff.role_name} · {formatDate(handoff.created_at)}</small></span>{handoff.confirmed ? <span className="confirmed-label"><CheckCircle2 size={13}/> CONFIRMED</span> : <button onClick={() => markHandoffConfirmed(handoff.id)} className="mark-confirmed">MARK CONFIRMED</button>}</div>)}</div>
       </aside>
     </div>
@@ -578,11 +773,15 @@ function Dashboard({ session, initialPlan, onSignOut }) {
         } catch (error) { showToast(error.message || 'Could not generate the clean spec.') }
         finally { setCleaningId(null) }
       }}><Sparkles size={15}/>{cleaningId === detail.id ? 'GENERATING...' : 'GENERATE CLEAN SPEC'}</Button></div> : <div className="pro-prompt locked-prompt"><Sparkles size={20}/><h3 className="display">STRUCTURED CLARITY. PRO ACCESS.</h3><p>AI Smart Spec Cleaner turns unstructured raw ideas into a clear, reusable project specification.</p><Button onClick={() => setModal({ type: 'upgrade', plan: 'pro' })}>UPGRADE TO PRO <ArrowUpRight size={14}/></Button></div>}
-      <div className="modal-actions"><Button variant="ghost" onClick={() => navigator.clipboard?.writeText(detail.raw_content || '').then(() => showToast('Raw thread copied.'))}><Clipboard size={15}/> COPY RAW THREAD</Button><Button onClick={() => setDetail(null)}>CLOSE RECORD</Button></div>
+      <div className="modal-actions"><Button variant="ghost" onClick={() => navigator.clipboard?.writeText(detail.raw_content || '').then(() => showToast('Raw thread copied.'))}><Clipboard size={15}/> COPY RAW THREAD</Button><Button variant="ghost" onClick={() => { const blob = new Blob([detail.raw_content || ''], { type: 'text/markdown;charset=utf-8' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = (detail.title || 'conversation').toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.md'; a.click(); URL.revokeObjectURL(url) }}><Download size={15}/> EXPORT THREAD</Button><Button onClick={() => setDetail(null)}>CLOSE RECORD</Button></div>
     </Modal>}
 
     {modal?.type === 'project' && <ProjectModal onClose={() => setModal(null)} onSave={createProject}/>}
     {modal?.type === 'conversation' && <ConversationModal onClose={() => setModal(null)} onSave={saveConversation}/>}
+    {modal?.type === 'import' && <ImportModal onClose={() => setModal(null)} onImport={saveImportedConversations}/>}
+    {modal?.type === 'inbox' && <InboxModal captures={captureInbox} projects={projects} activeProjectId={activeProject?.id || ''} onClose={() => setModal(null)} onImport={importCapture} onDiscard={discardCapture}/>}
+    {modal?.type === 'ai' && <AIWorkspaceModal initialPreferences={providerPreferences} onboarding={Boolean(modal.onboarding)} onClose={() => setModal(null)} onSave={saveAiPreferences}/>}
+    {modal?.type === 'integrations' && <IntegrationsModal tokens={integrationTokens} generatedToken={generatedToken} supabaseUrl={import.meta.env.VITE_SUPABASE_URL || ''} anonKey={import.meta.env.VITE_SUPABASE_ANON_KEY || ''} onClose={() => setModal(null)} onCreate={createIntegrationToken} onRevoke={revokeIntegrationToken}/>}
     {modal?.type === 'skill' && <SkillModal onClose={() => setModal(null)} onSave={createSkill}/>}
     {modal?.type === 'style' && <StyleModal initialValue={profile?.global_style || ''} onClose={() => setModal(null)} onSave={updateGlobalStyle}/>}
     {modal?.type === 'upgrade' && <UpgradeModal plan={modal.plan || 'pro'} message={modal.message} email={user.email} isPro={isPro} onClose={() => setModal(null)} onRefresh={refreshPlanStatus} refreshing={refreshingPlan}/>}
@@ -642,7 +841,134 @@ function ConversationModal({ onClose, onSave }) {
   const [values, setValues] = useState({ title: '', source_ai: 'ChatGPT', raw_content: '', tags: '' })
   const [busy, setBusy] = useState(false)
   const submit = async (e) => { e.preventDefault(); setBusy(true); try { await onSave(values) } catch (error) { alert(error.message) } finally { setBusy(false) } }
-  return <Modal title="SAVE RAW CONVERSATION" eyebrow="PRESERVE ORIGINAL CONTEXT" onClose={onClose} wide><form className="modal-form" onSubmit={submit}><div className="form-two-col"><label className="field-label">RECORD TITLE<input className="field-input" required value={values.title} onChange={e => setValues({ ...values, title: e.target.value })} placeholder="Describe this conversation"/></label><label className="field-label">SOURCE AI<select className="field-input" value={values.source_ai} onChange={e => setValues({ ...values, source_ai: e.target.value })}>{SOURCE_AIS.filter(x => x !== 'ALL').map(ai => <option key={ai} value={ai.charAt(0) + ai.slice(1).toLowerCase()}>{ai}</option>)}</select></label></div><label className="field-label">RAW THREAD<textarea className="field-input field-textarea raw-input" required value={values.raw_content} onChange={e => setValues({ ...values, raw_content: e.target.value })} placeholder="Paste the exact conversation here. VibeVault stores this text without rewriting it."/></label><label className="field-label">TAGS<input className="field-input" value={values.tags} onChange={e => setValues({ ...values, tags: e.target.value })} placeholder="architecture, bug-fix, product-thinking"/></label><div className="raw-integrity"><ShieldCheck size={15}/> The original text is saved as supplied. No automatic cleanup is applied.</div><div className="modal-actions"><Button variant="ghost" type="button" onClick={onClose}>CANCEL</Button><Button disabled={busy}>{busy ? 'SAVING...' : 'SAVE RAW THREAD'}</Button></div></form></Modal>
+  return <Modal title="SAVE RAW CONVERSATION" eyebrow="PRESERVE ORIGINAL CONTEXT" onClose={onClose} wide><form className="modal-form" onSubmit={submit}><div className="form-two-col"><label className="field-label">RECORD TITLE<input className="field-input" required value={values.title} onChange={e => setValues({ ...values, title: e.target.value })} placeholder="Describe this conversation"/></label><label className="field-label">SOURCE AI<select className="field-input" value={values.source_ai} onChange={e => setValues({ ...values, source_ai: e.target.value })}>{AI_PROVIDERS.map(provider => <option key={provider.name} value={provider.name}>{provider.name}</option>)}</select></label></div><label className="field-label">RAW THREAD<textarea className="field-input field-textarea raw-input" required value={values.raw_content} onChange={e => setValues({ ...values, raw_content: e.target.value })} placeholder="Paste the exact conversation here. VibeVault stores this text without rewriting it."/></label><label className="field-label">TAGS<input className="field-input" value={values.tags} onChange={e => setValues({ ...values, tags: e.target.value })} placeholder="architecture, bug-fix, product-thinking"/></label><div className="raw-integrity"><ShieldCheck size={15}/> The original text is saved as supplied. No automatic cleanup is applied.</div><div className="modal-actions"><Button variant="ghost" type="button" onClick={onClose}>CANCEL</Button><Button disabled={busy}>{busy ? 'SAVING...' : 'SAVE RAW THREAD'}</Button></div></form></Modal>
+}
+
+
+function ImportModal({ onClose, onImport }) {
+  const [sourceAi, setSourceAi] = useState('ChatGPT')
+  const [title, setTitle] = useState('')
+  const [rawText, setRawText] = useState('')
+  const [filename, setFilename] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [previewCount, setPreviewCount] = useState(0)
+  const handleFile = async event => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setFilename(file.name)
+    setError('')
+    try {
+      const text = await file.text()
+      setRawText(text)
+      const parsed = parseImportedConversations(text, file.name, sourceAi)
+      setPreviewCount(parsed.length)
+      if (parsed.length === 1 && !title) setTitle(parsed[0].title)
+    } catch (err) { setPreviewCount(0); setError(err.message) }
+  }
+  const submit = async event => {
+    event.preventDefault()
+    setBusy(true); setError('')
+    try {
+      const rows = parseImportedConversations(rawText, filename, sourceAi)
+      if (rows.length === 1 && title.trim()) rows[0].title = title.trim()
+      await onImport(rows)
+    } catch (err) { setError(err.message || 'Could not import this conversation.') }
+    finally { setBusy(false) }
+  }
+  return <Modal title="IMPORT CONVERSATIONS" eyebrow="BRING YOUR EXISTING AI WORK" onClose={onClose} wide>
+    <form className="modal-form import-form" onSubmit={submit}>
+      <div className="import-source-note"><Archive size={18}/><span><strong>Original conversation content is preserved.</strong><small>Import a single thread or a supported JSON conversation archive. ZIP archives must be extracted before selecting the JSON file.</small></span></div>
+      <div className="form-two-col">
+        <label className="field-label">SOURCE AI<select className="field-input" value={sourceAi} onChange={e => setSourceAi(e.target.value)}>{AI_PROVIDERS.map(provider => <option key={provider.name} value={provider.name}>{provider.name}</option>)}</select></label>
+        <label className="field-label">CONVERSATION TITLE<input className="field-input" value={title} onChange={e => setTitle(e.target.value)} placeholder="Used for a single text import"/></label>
+      </div>
+      <label className="import-dropzone"><Upload size={24}/><strong>{filename || 'Choose a conversation file'}</strong><span>JSON, JSONL, TXT or Markdown</span><input type="file" accept=".json,.jsonl,.txt,.md,.markdown" onChange={handleFile}/></label>
+      <div className="import-divider"><span>OR PASTE A CONVERSATION</span></div>
+      <label className="field-label">CONVERSATION CONTENT<textarea className="field-input field-textarea raw-input" required value={rawText} onChange={e => setRawText(e.target.value)} placeholder="Paste the conversation here, or choose a file above."/></label>
+      {previewCount > 0 && <div className="notice notice-success"><CheckCircle2 size={16}/><span>Ready to import {previewCount} conversation{previewCount === 1 ? '' : 's'} from this file.</span></div>}
+      {error && <div className="notice notice-error"><CircleHelp size={16}/><span>{error}</span></div>}
+      <div className="raw-integrity"><ShieldCheck size={15}/> Imported records stay in the Vault as original source material. Cleaned specifications are stored separately.</div>
+      <div className="modal-actions"><Button variant="ghost" type="button" onClick={onClose}>CANCEL</Button><Button disabled={busy || !rawText.trim()}>{busy ? 'IMPORTING...' : 'IMPORT TO PROJECT'}</Button></div>
+    </form>
+  </Modal>
+}
+
+function InboxModal({ captures, projects, activeProjectId, onClose, onImport, onDiscard }) {
+  const [projectForCapture, setProjectForCapture] = useState({})
+  const [busyId, setBusyId] = useState('')
+  const [error, setError] = useState('')
+  const importOne = async capture => {
+    setBusyId(capture.id); setError('')
+    try { await onImport(capture, projectForCapture[capture.id] || activeProjectId) }
+    catch (err) { setError(err.message || 'Could not import this capture.') }
+    finally { setBusyId('') }
+  }
+  const discardOne = async id => {
+    setBusyId(id); setError('')
+    try { await onDiscard(id) } catch (err) { setError(err.message || 'Could not discard this capture.') }
+    finally { setBusyId('') }
+  }
+  return <Modal title="IMPORT INBOX" eyebrow="BROWSER CAPTURES WAITING FOR A PROJECT" onClose={onClose} wide>
+    <div className="inbox-intro"><Inbox size={19}/><span>Captures stay separate until you assign them to a project. Nothing enters your permanent Conversation Vault without your action.</span></div>
+    {!captures.length ? <div className="empty-state inbox-empty"><Inbox size={28}/><h3 className="display">YOUR INBOX IS CLEAR.</h3><p>Use the VibeVault browser extension to capture a conversation from a supported AI page.</p></div> : <div className="inbox-capture-list">{captures.map(capture => <article className="inbox-capture-card" key={capture.id}><div className="conversation-meta"><span className="source-badge">{capture.source_ai}</span><span>{formatDate(capture.created_at)}</span></div><h3>{capture.title}</h3><p>{(capture.raw_content || '').slice(0, 220).replace(/\s+/g, ' ')}{(capture.raw_content || '').length > 220 ? '…' : ''}</p><label className="field-label">SAVE INTO PROJECT<select className="field-input" value={projectForCapture[capture.id] || activeProjectId} onChange={e => setProjectForCapture(current => ({ ...current, [capture.id]: e.target.value }))}><option value="">Choose a project</option>{projects.map(project => <option value={project.id} key={project.id}>{project.title}</option>)}</select></label><div className="modal-actions"><Button variant="ghost" onClick={() => discardOne(capture.id)} disabled={busyId === capture.id}>DISCARD</Button><Button onClick={() => importOne(capture)} disabled={busyId === capture.id || !projects.length}>{busyId === capture.id ? 'SAVING...' : 'ADD TO VAULT'}</Button></div></article>)}</div>}
+    {error && <div className="notice notice-error"><CircleHelp size={16}/><span>{error}</span></div>}
+    <div className="modal-actions"><Button onClick={onClose}>DONE</Button></div>
+  </Modal>
+}
+
+function AIWorkspaceModal({ initialPreferences, onboarding, onClose, onSave }) {
+  const [providers, setProviders] = useState(() => Object.fromEntries(AI_PROVIDERS.map(provider => [provider.name, {
+    enabled: Boolean(initialPreferences.providers?.[provider.name]?.enabled),
+    role: initialPreferences.providers?.[provider.name]?.role || provider.role
+  }])))
+  const [lastTarget, setLastTarget] = useState(initialPreferences.last_target || 'Claude')
+  const [recommendations, setRecommendations] = useState(Boolean(initialPreferences.recommendations))
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const enabledCount = Object.values(providers).filter(item => item.enabled).length
+  const submit = async event => {
+    event.preventDefault()
+    if (!enabledCount) { setError('Select at least one AI provider to continue.'); return }
+    setBusy(true); setError('')
+    try { await onSave({ providers, last_target: lastTarget, recommendations }) }
+    catch (err) { setError(err.message || 'Could not save your AI workspace.') }
+    finally { setBusy(false) }
+  }
+  return <Modal title={onboarding ? 'SET UP YOUR AI WORKSPACE' : 'YOUR AI WORKSPACE'} eyebrow={onboarding ? 'FIRST-TIME SETUP · YOUR CHOICES ARE SAVED' : 'PROVIDERS · PERSONAL ROLES · PREFERENCES'} onClose={onboarding ? undefined : onClose} wide>
+    <form className="modal-form ai-workspace-form" onSubmit={submit}>
+      <p className="modal-explainer">{onboarding ? 'Choose the AI tools you actually use and assign each one a purpose. You can change these settings later. Choose at least one provider to finish setup.' : 'Select your preferred AI providers and tell VibeVault what you usually use each one for. These preferences guide future handoffs.'}</p>
+      <div className="ai-provider-grid">{AI_PROVIDERS.map(provider => {
+        const value = providers[provider.name]
+        return <article className={'ai-provider-card ' + (value.enabled ? 'selected' : '')} key={provider.name}>
+          <label className="ai-provider-top"><input type="checkbox" checked={value.enabled} onChange={e => setProviders(current => ({ ...current, [provider.name]: { ...current[provider.name], enabled: e.target.checked } }))}/><span className="ai-provider-logo">{provider.logo ? <img src={provider.logo} alt={provider.name + ' logo'} onError={event => { event.currentTarget.style.display = 'none' }}/> : provider.name.slice(0, 1)}</span><strong>{provider.name}</strong><span className="ai-selected-mark">{value.enabled ? <CheckCircle2 size={16}/> : <Plus size={15}/>}</span></label>
+          <p>{provider.description}</p>
+          <label className="field-label">MY USUAL ROLE<input className="field-input" value={value.role} onChange={e => setProviders(current => ({ ...current, [provider.name]: { ...current[provider.name], role: e.target.value } }))} placeholder="What do you use this AI for?"/></label>
+        </article>
+      })}</div>
+      <label className="recommendation-toggle"><input type="checkbox" checked={recommendations} onChange={e => setRecommendations(e.target.checked)}/><span><strong>Suggest a suitable AI for a task</strong><small>Recommendations never override your selection. You remain in control of the destination AI.</small></span></label>
+      <label className="field-label">DEFAULT AI FOR HANDOFFS<select className="field-input" value={lastTarget} onChange={e => setLastTarget(e.target.value)}>{AI_PROVIDERS.filter(provider => providers[provider.name]?.enabled).map(provider => <option key={provider.name}>{provider.name}</option>)}</select></label>
+      {error && <div className="notice notice-error"><CircleHelp size={16}/><span>{error}</span></div>}
+      <div className="modal-actions">{!onboarding && <Button variant="ghost" type="button" onClick={onClose}>CANCEL</Button>}<Button disabled={busy || !enabledCount}>{busy ? 'SAVING PREFERENCES...' : onboarding ? 'SAVE MY AI WORKSPACE' : 'SAVE PREFERENCES'}</Button></div>
+    </form>
+  </Modal>
+}
+
+function IntegrationsModal({ tokens, generatedToken, supabaseUrl, anonKey, onClose, onCreate, onRevoke }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const create = async scope => { setBusy(true); setError(''); try { await onCreate(scope) } catch (err) { setError(err.message || 'Could not create this connection token.') } finally { setBusy(false) } }
+  const copy = text => navigator.clipboard.writeText(text)
+  const edgeBase = supabaseUrl ? supabaseUrl.replace(/\/$/, '') + '/functions/v1/' : ''
+  const tokenScope = generatedToken.startsWith('vv_capture_') ? 'capture' : generatedToken.startsWith('vv_mcp_') ? 'mcp' : ''
+  return <Modal title="CONNECTIONS" eyebrow="VIBEVAULT INTEGRATIONS" onClose={onClose} wide>
+    <div className="integration-intro"><Plug size={20}/><span><strong>Connect your AI workflow to your Vault.</strong><small>Browser Capture saves full page conversations to your review inbox. MCP lets compatible AI apps read project knowledge and save authorized updates.</small></span></div>
+    <div className="integration-actions"><article><h3>Browser Capture Extension</h3><p>Capture the conversation open in ChatGPT, Claude or Gemini. Review it in your Import Inbox before it enters a project.</p><Button onClick={() => create('capture')} disabled={busy}>CREATE CAPTURE TOKEN</Button></article><article><h3>MCP Server</h3><p>Connect a compatible AI client to search projects, retrieve context and save session summaries or decisions.</p><Button variant="ghost" onClick={() => create('mcp')} disabled={busy}>CREATE MCP TOKEN</Button></article></div>
+    {generatedToken && <div className="generated-token-panel"><span className="field-label">COPY THIS {tokenScope.toUpperCase()} TOKEN NOW · SHOWN ONLY ONCE</span><code>{generatedToken}</code><Button variant="ghost" onClick={() => copy(generatedToken)}><Clipboard size={14}/> COPY TOKEN</Button>{tokenScope === 'capture' ? <div className="extension-config"><p><strong>Extension connection details</strong></p><div><small>SUPABASE PROJECT URL</small><code>{supabaseUrl || 'Set VITE_SUPABASE_URL first'}</code></div><div><small>SUPABASE ANON KEY (PUBLIC)</small><code>{anonKey || 'Set VITE_SUPABASE_ANON_KEY first'}</code></div><p>Load the <a href="https://github.com/encryptedzee/VIBE_VAULT/tree/main/browser-extension" target="_blank" rel="noreferrer">browser-extension folder</a> as an unpacked Chrome extension, then paste these values and this token into its Settings.</p></div> : <div className="extension-config"><p><strong>MCP endpoint</strong></p><code>{edgeBase ? edgeBase + 'mcp' : 'Set VITE_SUPABASE_URL first'}</code><p>Use this URL as the remote MCP server address and the generated token as its Bearer authentication credential. Deploy the MCP Edge Function before connecting.</p></div>}</div>}
+    <div className="token-list"><span className="field-label">ACTIVE CONNECTION TOKENS</span>{tokens.map(token => <div className="token-row" key={token.id}><span><strong>{token.label}</strong><small>{token.scope.toUpperCase()} · {formatDate(token.created_at)}</small></span>{token.revoked_at ? <span className="revoked-label">REVOKED</span> : <Button variant="ghost" onClick={() => onRevoke(token.id)}>REVOKE</Button>}</div>)}{!tokens.length && <p className="empty-small">No integration tokens created yet.</p>}</div>
+    {error && <div className="notice notice-error"><CircleHelp size={16}/><span>{error}</span></div>}
+    <div className="modal-actions"><Button onClick={onClose}>DONE</Button></div>
+  </Modal>
 }
 
 function SkillModal({ onClose, onSave }) {
