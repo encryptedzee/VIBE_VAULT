@@ -1076,7 +1076,7 @@ function Dashboard({ session, initialPlan, onSignOut }) {
         <span className="ide-top-divider"/>
         <div className="ide-workspace-name"><small>WORKSPACE</small><strong>{activeProject?.title || 'No project selected'}</strong></div>
         <span className="ide-top-status"><span className="status-pulse"/> {busy ? 'SYNCING' : 'SAVED'}</span>
-        {IS_FEATURE_PREVIEW_HOST && <span className="ide-feature-preview-badge">FEATURE PREVIEW</span>}
+        {IS_FEATURE_PREVIEW_HOST && <span className="ide-feature-preview-badge" title="This is the green-and-white workspace redesign preview">FEATURE PREVIEW · GREEN WORKSPACE</span>}
       </div>
       <div className="ide-topbar-right">
         <button className="ide-global-search-trigger" onClick={() => setSearchOpen(true)} aria-label="Search VibeVault"><Search size={15}/><span>Search projects, conversations, decisions…</span><kbd>Ctrl K</kbd></button>
