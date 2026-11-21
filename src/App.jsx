@@ -698,19 +698,23 @@ function Dashboard({ session, initialPlan, onSignOut }) {
     setConversations(current => [data, ...current]); setModal(null); showToast('Raw conversation saved exactly as submitted.')
   }
 
-  async function saveImportedConversations(items) {
-    if (!activeProject) throw new Error('Create or select a project before importing conversations.')
+  async function saveImportedConversations(items, transfer) {
+    const destination = projects.find(project => project.id === transfer?.projectId)
+    if (!destination) throw new Error('Choose an available destination project.')
     if (!isPro && conversations.length + items.length > 3) {
       setModal({ type: 'upgrade', plan: 'pro', message: 'This import exceeds the Starter Vault conversation limit. Upgrade to import the full archive.' })
       return
     }
+    const target = transfer?.targetAi || providerPreferences.last_target || 'Claude'
+    const savedRole = providerPreferences.providers?.[target]?.role || ''
+    const transferContext = { target_ai: target, agent_mode: transfer?.agentMode || 'saved', agent_role: transfer?.agentMode === 'manual' ? transfer.taskPurpose : savedRole, task_purpose: transfer?.taskPurpose || '' }
     const rows = items.map(item => ({
-      project_id: activeProject.id, user_id: user.id,
+      project_id: destination.id, user_id: user.id,
       title: String(item.title || 'Imported conversation').slice(0, 180),
       source_ai: item.source_ai || 'Other', raw_content: item.raw_content || '', cleaned_spec: '',
       tags: item.tags || ['imported'], image_urls: [], source_url: item.source_url || null,
       source_payload: item.source_payload || null,
-      capture_metadata: item.capture_metadata || { import_method: 'manual' }
+      capture_metadata: { ...(item.capture_metadata || { import_method: 'manual' }), transfer_context: transferContext }
     }))
     const inserted = []
     for (let index = 0; index < rows.length; index += 40) {
@@ -718,13 +722,14 @@ function Dashboard({ session, initialPlan, onSignOut }) {
       if (error) throw error
       inserted.push(...(data || []))
     }
-    setConversations(current => [...inserted, ...current])
+    setConversations(current => [...inserted, ...current]); setActiveProjectId(destination.id); setTargetAi(target)
+    if (transfer?.agentMode === 'manual') setTaskPrompt(transfer.taskPurpose)
     if (inserted[0]) { setActiveConversationId(inserted[0].id); setActivePane('conversation') }
     setModal(null)
-    showToast(inserted.length + ' conversation' + (inserted.length === 1 ? '' : 's') + ' imported and preserved.')
+    showToast(inserted.length + ' conversation' + (inserted.length === 1 ? '' : 's') + ' added to ' + destination.title + '.')
   }
 
-  async function importCapture(capture, projectId) {
+  async function importCapture(capture, projectId, transfer) {
     if (!projectId) throw new Error('Choose a project for this captured conversation.')
     const project = projects.find(item => item.id === projectId)
     if (!project) throw new Error('The selected project is unavailable.')
@@ -732,18 +737,22 @@ function Dashboard({ session, initialPlan, onSignOut }) {
       setModal({ type: 'upgrade', plan: 'pro', message: 'Starter Vault limit reached (3/3 Convos). Upgrade to import this capture.' })
       return
     }
+    const target = transfer?.targetAi || providerPreferences.last_target || 'Claude'
+    const savedRole = providerPreferences.providers?.[target]?.role || ''
+    const transferContext = { target_ai: target, agent_mode: transfer?.agentMode || 'saved', agent_role: transfer?.agentMode === 'manual' ? transfer.taskPurpose : savedRole, task_purpose: transfer?.taskPurpose || '' }
     const { data, error } = await supabase.from('conversations').insert({
       user_id: user.id, project_id: projectId, title: capture.title || 'Captured conversation',
       source_ai: capture.source_ai || 'Other', raw_content: capture.raw_content,
       tags: ['browser-capture'], source_url: capture.source_url || null,
-      capture_metadata: capture.capture_metadata || { import_method: 'browser_extension' }
+      capture_metadata: { ...(capture.capture_metadata || { import_method: 'browser_extension' }), transfer_context: transferContext }
     }).select().single()
     if (error) throw error
     const { error: updateError } = await supabase.from('capture_inbox').update({
       status: 'imported', project_id: projectId, imported_conversation_id: data.id
     }).eq('id', capture.id).eq('user_id', user.id)
     if (updateError) throw updateError
-    setConversations(current => [data, ...current])
+    setConversations(current => [data, ...current]); setActiveProjectId(projectId); setTargetAi(target)
+    if (transfer?.agentMode === 'manual') setTaskPrompt(transfer.taskPurpose)
     setActiveConversationId(data.id); setActivePane('conversation')
     setCaptureInbox(current => current.filter(item => item.id !== capture.id))
     showToast('Captured conversation added to ' + project.title + '.')
@@ -788,25 +797,28 @@ function Dashboard({ session, initialPlan, onSignOut }) {
     showToast('Integration token revoked.')
   }
 
-  async function exportProject() {
-    if (!activeProject) { showToast('Select a project before exporting.'); return }
+  async function exportProject(options = {}) {
+    const project = projects.find(item => item.id === (options.projectId || activeProject?.id))
+    if (!project) throw new Error('Choose a project before exporting.')
     const [decisionRes, sessionRes] = await Promise.all([
-      supabase.from('project_decisions').select('*').eq('project_id', activeProject.id).eq('user_id', user.id).order('created_at', { ascending: true }),
-      supabase.from('session_summaries').select('*').eq('project_id', activeProject.id).eq('user_id', user.id).order('created_at', { ascending: true })
+      supabase.from('project_decisions').select('*').eq('project_id', project.id).eq('user_id', user.id).order('created_at', { ascending: true }),
+      supabase.from('session_summaries').select('*').eq('project_id', project.id).eq('user_id', user.id).order('created_at', { ascending: true })
     ])
     if (decisionRes.error) throw decisionRes.error
     if (sessionRes.error) throw sessionRes.error
-    const bundle = {
-      format: 'vibevault-project-export', version: 1, exported_at: new Date().toISOString(),
-      project: activeProject, conversations: conversations.filter(item => item.project_id === activeProject.id),
-      decisions: decisionRes.data || [], session_summaries: sessionRes.data || [],
-      handoffs: handoffs.filter(item => item.project_id === activeProject.id), ai_preferences: providerPreferences
-    }
+    const target = options.targetAi || providerPreferences.last_target || 'Claude'
+    const agentRole = options.agentMode === 'manual' ? options.taskPurpose : (providerPreferences.providers?.[target]?.role || '')
+    const bundle = { format: 'vibevault-project-export', version: 1, exported_at: new Date().toISOString(), project,
+      conversations: conversations.filter(item => item.project_id === project.id), decisions: decisionRes.data || [],
+      session_summaries: sessionRes.data || [], handoffs: handoffs.filter(item => item.project_id === project.id),
+      ai_preferences: providerPreferences, transfer_context: { target_ai: target, agent_mode: options.agentMode || 'saved', agent_role: agentRole, task_purpose: options.taskPurpose || '' } }
     const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json;charset=utf-8' })
     const url = URL.createObjectURL(blob); const anchor = document.createElement('a')
-    anchor.href = url; anchor.download = (activeProject.title || 'vibevault-project').toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-vibevault-export.json'
+    anchor.href = url; anchor.download = (project.title || 'vibevault-project').toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-vibevault-export.json'
     document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url)
-    showToast('Project export prepared.')
+    setActiveProjectId(project.id); setTargetAi(target)
+    if (options.agentMode === 'manual') setTaskPrompt(options.taskPurpose)
+    setModal(null); showToast('Project export prepared for ' + target + '.')
   }
 
   async function createSkill(values) {
@@ -987,7 +999,7 @@ function Dashboard({ session, initialPlan, onSignOut }) {
           {activePane !== 'overview' && activePane !== 'conversation' && <button className="active"><span>{navItems.find(item => item.id === activePane)?.label || 'Workspace'}</span></button>}
           <span className="ide-tabs-spacer"/>
           <button className="ide-tab-action" title="Import conversation" onClick={requestSaveConversation}><Upload size={14}/></button>
-          <button className="ide-tab-action" title="Export project" disabled={!activeProject} onClick={() => exportProject().catch(error => showToast(error.message))}><Download size={14}/></button>
+          <button className="ide-tab-action" title="Export project" disabled={!activeProject} onClick={() => setModal({ type: 'export' })}><Download size={14}/></button>
         </div>
         <div className="ide-breadcrumb"><span>VIBEVAULT</span><ChevronRight size={12}/><span>{activeProject?.title || 'WORKSPACE'}</span><ChevronRight size={12}/><strong>{activePane === 'conversation' ? activeConversation?.title || 'Conversation' : navItems.find(item => item.id === activePane)?.label || 'Overview'}</strong><span className="ide-breadcrumb-spacer"/><span className="ide-branch"><GitBranch size={12}/> PROJECT CONTEXT</span></div>
         <div className="ide-editor-scroll">
@@ -1059,7 +1071,7 @@ function Dashboard({ session, initialPlan, onSignOut }) {
         <div className="ide-agent-scroll">
           <div className="ide-agent-section-title"><span>DESTINATION AI</span><button onClick={() => setModal({ type: 'ai' })}>MANAGE</button></div>
           <button className="ide-agent-provider" onClick={() => setModal({ type: 'ai' })}>
-            <span className="ide-agent-logo">{selectedProvider.logo ? <img src={selectedProvider.logo} alt=""/> : selectedProvider.name.slice(0,1)}</span>
+            <AIProviderLogo provider={selectedProvider} className="ide-agent-logo"/>
             <span><strong>{targetAi}</strong><small>{providerPreferences.providers?.[targetAi]?.role || selectedProvider.role}</small></span>
             <ChevronDown size={15}/>
           </button>
@@ -1090,9 +1102,10 @@ function Dashboard({ session, initialPlan, onSignOut }) {
     {modal?.type === 'project' && <ProjectModal onClose={() => setModal(null)} onSave={createProject}/>}
     {modal?.type === 'project-edit' && <ProjectModal initialProject={activeProject} onClose={() => setModal(null)} onSave={updateProject}/>}
     {modal?.type === 'conversation' && <ConversationModal onClose={() => setModal(null)} onSave={saveConversation}/>}
-    {modal?.type === 'import' && <ImportModal onClose={() => setModal(null)} onImport={saveImportedConversations}/>}
-    {modal?.type === 'inbox' && <InboxModal captures={captureInbox} projects={projects} activeProjectId={activeProject?.id || ''} onClose={() => setModal(null)} onImport={importCapture} onDiscard={discardCapture}/>}
+    {modal?.type === 'import' && <ImportModal onClose={() => setModal(null)} onImport={saveImportedConversations} projects={projects} activeProjectId={activeProject?.id || ''} providerPreferences={providerPreferences}/>}
+    {modal?.type === 'inbox' && <InboxModal captures={captureInbox} projects={projects} activeProjectId={activeProject?.id || ''} providerPreferences={providerPreferences} onClose={() => setModal(null)} onImport={importCapture} onDiscard={discardCapture}/>}
     {modal?.type === 'ai' && <AIWorkspaceModal initialPreferences={providerPreferences} onboarding={Boolean(modal.onboarding)} onClose={() => setModal(null)} onSave={saveAiPreferences}/>}
+    {modal?.type === 'export' && <ExportModal projects={projects} activeProjectId={activeProject?.id || ''} providerPreferences={providerPreferences} onClose={() => setModal(null)} onExport={exportProject}/>}
     {modal?.type === 'integrations' && <IntegrationsModal tokens={integrationTokens} generatedToken={generatedToken} supabaseUrl={import.meta.env.VITE_SUPABASE_URL || ''} anonKey={import.meta.env.VITE_SUPABASE_ANON_KEY || ''} onClose={() => setModal(null)} onCreate={createIntegrationToken} onRevoke={revokeIntegrationToken}/>}
     {modal?.type === 'skill' && <SkillModal onClose={() => setModal(null)} onSave={createSkill}/>}
     {modal?.type === 'style' && <StyleModal initialValue={profile?.global_style || ''} onClose={() => setModal(null)} onSave={updateGlobalStyle}/>}
