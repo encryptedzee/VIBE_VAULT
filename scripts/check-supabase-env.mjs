@@ -12,8 +12,13 @@ for (const name of required) {
 }
 
 if (missing.length) {
-  console.error(`[VibeVault] Build stopped: missing ${missing.join(', ')}. Add these as Cloudflare Build variables for the Preview environment, then rebuild.`)
-  process.exit(1)
+  const message = `[VibeVault] Missing ${missing.join(', ')}. The app will show "Supabase is not connected" until these are set as Build variables.`
+  // Set REQUIRE_SUPABASE=1 to make missing values fail the build.
+  if (process.env.REQUIRE_SUPABASE === '1') {
+    console.error(message)
+    process.exit(1)
+  }
+  console.warn(message)
+} else {
+  console.log('[VibeVault] Supabase build variables detected. Values were not displayed.')
 }
-
-console.log('[VibeVault] Supabase build variables detected. Values were not displayed.')
