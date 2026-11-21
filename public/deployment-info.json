@@ -1,0 +1,9 @@
+{
+  "application": "VibeVault",
+  "channel": "feature-preview",
+  "branch": "feature/professional-workspace-redesign",
+  "releaseLabel": "workspace-redesign-verification-1",
+  "previewHost": "feature-professional-workspace-redesign-vibevault.vibevault-hq.workers.dev",
+  "productionHost": "vibevault.vibevault-hq.workers.dev",
+  "visibleMarker": "FEATURE PREVIEW"
+}

@@ -2213,3 +2213,25 @@ button:disabled { cursor: not-allowed !important; opacity: .42; transform: none 
 @media(prefers-reduced-motion:reduce) {
   .ide-shell .ide-project-node,.ide-shell .ide-nav-item,.ide-shell .ide-file-node { transition:none!important; }
 }
+
+
+/* Visible environment marker: keeps preview and production URLs unmistakable. */
+.ide-shell .ide-feature-preview-badge {
+  display:inline-flex;
+  min-height:20px;
+  align-items:center;
+  margin-left:5px;
+  padding:0 8px;
+  border:1px solid #b8dfc5;
+  border-radius:999px;
+  background:#eff8f1;
+  color:#176b4b;
+  font-size:8px;
+  font-weight:800;
+  letter-spacing:.1em;
+  line-height:1;
+  white-space:nowrap;
+}
+@media(max-width:780px) {
+  .ide-shell .ide-feature-preview-badge { min-height:18px; margin-left:0; padding:0 6px; font-size:7px; }
+}

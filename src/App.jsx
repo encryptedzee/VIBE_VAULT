@@ -15,6 +15,9 @@ const LIFETIME_CHECKOUT_URL = import.meta.env.VITE_LIFETIME_CHECKOUT_URL || ''
 const LIPA_NAMBA = import.meta.env.VITE_LIPA_NAMBA || ''
 const LIPA_NAME = import.meta.env.VITE_LIPA_NAME || ''
 
+// Make it obvious when the isolated Cloudflare feature preview is open.
+const IS_FEATURE_PREVIEW_HOST = typeof window !== 'undefined' && /^(?:feature-professional-workspace-redesign|[a-f0-9]{8})-vibevault\\.vibevault-hq\\.workers\\.dev$/i.test(window.location.hostname)
+
 const SOURCE_AIS = ['ALL', 'CLAUDE', 'CHATGPT', 'GEMINI', 'CURSOR', 'WINDSURF', 'PERPLEXITY', 'DEEPSEEK', 'LOVABLE', 'BASE44', 'TRAE', 'QODER', 'OTHER']
 const TARGET_AIS = ['Claude', 'ChatGPT', 'Gemini', 'Cursor', 'Windsurf', 'Perplexity', 'DeepSeek', 'Lovable', 'Base44', 'Trae', 'Qoder', 'Other']
 const DEFAULT_SKILLS = [
@@ -1073,6 +1076,7 @@ function Dashboard({ session, initialPlan, onSignOut }) {
         <span className="ide-top-divider"/>
         <div className="ide-workspace-name"><small>WORKSPACE</small><strong>{activeProject?.title || 'No project selected'}</strong></div>
         <span className="ide-top-status"><span className="status-pulse"/> {busy ? 'SYNCING' : 'SAVED'}</span>
+        {IS_FEATURE_PREVIEW_HOST && <span className="ide-feature-preview-badge">FEATURE PREVIEW</span>}
       </div>
       <div className="ide-topbar-right">
         <button className="ide-global-search-trigger" onClick={() => setSearchOpen(true)} aria-label="Search VibeVault"><Search size={15}/><span>Search projects, conversations, decisions…</span><kbd>Ctrl K</kbd></button>
