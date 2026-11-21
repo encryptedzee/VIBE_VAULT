@@ -889,7 +889,7 @@ function ImportModal({ onClose, onImport }) {
       {previewCount > 0 && <div className="notice notice-success"><CheckCircle2 size={16}/><span>Ready to import {previewCount} conversation{previewCount === 1 ? '' : 's'} from this file.</span></div>}
       {error && <div className="notice notice-error"><CircleHelp size={16}/><span>{error}</span></div>}
       <div className="raw-integrity"><ShieldCheck size={15}/> Imported records stay in the Vault as original source material. Cleaned specifications are stored separately.</div>
-      <div className="modal-actions"><Button variant="ghost" type="button" onClick={onClose}>CANCEL</Button><Button disabled={busy || !rawText.trim()}>{busy ? 'IMPORTING...' : 'IMPORT TO PROJECT'}</Button></div>
+      <div className="modal-actions"><Button variant="ghost" type="button" onClick={onClose}>CANCEL</Button><Button disabled={busy || !rawText.trim()}>{busy ? <><span className="vv-spinner"/> IMPORTING...</> : 'IMPORT TO PROJECT'}</Button></div>
     </form>
   </Modal>
 }
@@ -947,9 +947,9 @@ function AIWorkspaceModal({ initialPreferences, onboarding, onClose, onSave }) {
         </article>
       })}</div>
       <label className="recommendation-toggle"><input type="checkbox" checked={recommendations} onChange={e => setRecommendations(e.target.checked)}/><span><strong>Suggest a suitable AI for a task</strong><small>Recommendations never override your selection. You remain in control of the destination AI.</small></span></label>
-      <label className="field-label">DEFAULT AI FOR HANDOFFS<select className="field-input" value={lastTarget} onChange={e => setLastTarget(e.target.value)}>{AI_PROVIDERS.filter(provider => providers[provider.name]?.enabled).map(provider => <option key={provider.name}>{provider.name}</option>)}</select></label>
+      <label className="field-label">DEFAULT AI FOR HANDOFFS<select className="field-input" value={providers[lastTarget]?.enabled ? lastTarget : (AI_PROVIDERS.find(provider => providers[provider.name]?.enabled)?.name || '')} onChange={e => setLastTarget(e.target.value)}>{AI_PROVIDERS.filter(provider => providers[provider.name]?.enabled).map(provider => <option key={provider.name}>{provider.name}</option>)}</select></label>
       {error && <div className="notice notice-error"><CircleHelp size={16}/><span>{error}</span></div>}
-      <div className="modal-actions">{!onboarding && <Button variant="ghost" type="button" onClick={onClose}>CANCEL</Button>}<Button disabled={busy || !enabledCount}>{busy ? 'SAVING PREFERENCES...' : onboarding ? 'SAVE MY AI WORKSPACE' : 'SAVE PREFERENCES'}</Button></div>
+      <div className="modal-actions">{!onboarding && <Button variant="ghost" type="button" onClick={onClose}>CANCEL</Button>}<Button disabled={busy || !enabledCount}>{busy ? <><span className="vv-spinner"/> SAVING PREFERENCES...</> : onboarding ? 'SAVE MY AI WORKSPACE' : 'SAVE PREFERENCES'}</Button></div>
     </form>
   </Modal>
 }
