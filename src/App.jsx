@@ -641,9 +641,6 @@ function Dashboard({ session, initialPlan, onSignOut }) {
     }
     load()
     return () => { mounted = false }
-  // Initial load per authenticated identity.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user.id])
 
   // Initial load per authenticated identity.
   // eslint-disable-next-line react-hooks/exhaustive-deps
