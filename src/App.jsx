@@ -548,6 +548,7 @@ function Dashboard({ session, initialPlan, onSignOut }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [inspectorOpen, setInspectorOpen] = useState(true)
   const [mobileAgentVisible, setMobileAgentVisible] = useState(false)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -1063,7 +1064,7 @@ function Dashboard({ session, initialPlan, onSignOut }) {
   ]
   const navItems = navGroups.flatMap(group => group.items)
   const navCount = item => item.id === 'conversations' ? projectConversations.length : item.id === 'decisions' ? projectDecisions.length : item.id === 'handoffs' ? projectHandoffs.length : item.id === 'inbox' ? captureInbox.length : item.id === 'connections' ? integrationTokens.filter(token => !token.revoked_at).length : ''
-  const setPane = pane => { setActivePane(pane); if (pane !== 'conversation') setActiveConversationId(null); setMobileAgentVisible(false) }
+  const setPane = pane => { setActivePane(pane); if (pane !== 'conversation') setActiveConversationId(null); setMobileAgentVisible(false); setMobileNavOpen(false) }
   return <main className="ide-shell">
     <header className="ide-topbar">
       <div className="ide-topbar-left">
@@ -1086,22 +1087,23 @@ function Dashboard({ session, initialPlan, onSignOut }) {
 
     <div className={'ide-workbench ' + (sidebarCollapsed ? 'sidebar-collapsed ' : '') + (!inspectorOpen ? 'inspector-collapsed ' : '') + (mobileAgentVisible ? 'mobile-agent-visible' : '')}>
       <nav className="ide-activitybar" aria-label="Workspace tools">
-        <button className={activePane === 'overview' || activePane === 'projects' ? 'active' : ''} title="Workspace" onClick={() => setPane('overview')}><PanelsTopLeft size={19}/></button>
-        <button className={activePane === 'handoffs' ? 'active' : ''} title="Agent handoffs" onClick={() => setPane('handoffs')}><Workflow size={19}/></button>
-        <button className={activePane === 'conversations' || activePane === 'conversation' ? 'active' : ''} title="Conversation vault" onClick={() => setPane('conversations')}><Archive size={19}/></button>
-        <button className={activePane === 'knowledge' || activePane === 'decisions' || activePane === 'summaries' ? 'active' : ''} title="Knowledge" onClick={() => setPane('knowledge')}><BookOpen size={19}/></button>
+        <button className={activePane === 'overview' || activePane === 'projects' ? 'active' : ''} title="Workspace" aria-label="Workspace" aria-current={activePane === 'overview' || activePane === 'projects' ? 'page' : undefined} onClick={() => setPane('overview')}><PanelsTopLeft size={19}/></button>
+        <button className={activePane === 'handoffs' ? 'active' : ''} title="Agent handoffs" aria-label="Agent handoffs" aria-current={activePane === 'handoffs' ? 'page' : undefined} onClick={() => setPane('handoffs')}><Workflow size={19}/></button>
+        <button className={activePane === 'conversations' || activePane === 'conversation' ? 'active' : ''} title="Conversation vault" aria-label="Conversation vault" aria-current={activePane === 'conversations' || activePane === 'conversation' ? 'page' : undefined} onClick={() => setPane('conversations')}><Archive size={19}/></button>
+        <button className={activePane === 'knowledge' || activePane === 'decisions' || activePane === 'summaries' ? 'active' : ''} title="Knowledge" aria-label="Knowledge" aria-current={activePane === 'knowledge' || activePane === 'decisions' || activePane === 'summaries' ? 'page' : undefined} onClick={() => setPane('knowledge')}><BookOpen size={19}/></button>
         <span className="ide-activity-spacer"/>
-        <button title="AI connections" onClick={() => setPane('connections')}><Plug size={18}/></button>
-        <button title="Settings" onClick={() => setPane('settings')}><Settings2 size={18}/></button>
+        <button className={activePane === 'connections' ? 'active' : ''} title="AI connections" aria-label="AI connections" aria-current={activePane === 'connections' ? 'page' : undefined} onClick={() => setPane('connections')}><Plug size={18}/></button>
+        <button className={activePane === 'settings' || activePane === 'profile' || activePane === 'subscription' ? 'active' : ''} title="Settings" aria-label="Settings" aria-current={activePane === 'settings' || activePane === 'profile' || activePane === 'subscription' ? 'page' : undefined} onClick={() => setPane('settings')}><Settings2 size={18}/></button>
       </nav>
 
       <aside className="ide-explorer">
         <div className="ide-explorer-title"><span>EXPLORER</span><button title="Create project" onClick={requestCreateProject}><Plus size={15}/></button></div>
         <div className="ide-explorer-project-label"><span><ChevronDown size={13}/> PROJECTS</span><button title="New project" onClick={requestCreateProject}><Plus size={14}/></button></div>
-        <div className="ide-sidebar-search"><Search size={13}/><input aria-label="Filter projects" value={projectSearch} onChange={event => setProjectSearch(event.target.value)} placeholder="Filter projects"/></div>
+        <div className="ide-sidebar-search"><Search size={13}/><input aria-label="Filter projects" value={projectSearch} onChange={event => setProjectSearch(event.target.value)} placeholder="Filter projects"/><button type="button" title="Clear project filter" aria-label="Clear project filter" disabled={!projectSearch} onClick={() => setProjectSearch('')}><X size={13}/></button></div>
         <div className="ide-project-tree">
-          {filteredProjects.map(project => <button key={project.id} className={'ide-project-node ' + (activeProject?.id === project.id ? 'selected' : '')} onClick={() => { setActiveProjectId(project.id); setActiveConversationId(null); setSelectedIds([]); setActivePane('overview') }}><FolderKanban size={15}/><span>{project.title}</span><small>{conversations.filter(item => item.project_id === project.id).length}</small></button>)}
+          {filteredProjects.map(project => <button key={project.id} className={'ide-project-node ' + (activeProject?.id === project.id ? 'selected' : '')} aria-pressed={activeProject?.id === project.id} onClick={() => { setActiveProjectId(project.id); setActiveConversationId(null); setSelectedIds([]); setActivePane('overview'); setMobileNavOpen(false) }}><FolderKanban size={15}/><span className="ide-project-node-copy"><strong>{project.title}</strong><small>{project.description || 'Project workspace'}</small></span><em className="ide-project-count">{conversations.filter(item => item.project_id === project.id).length}</em></button>)}
           {!projects.length && <div className="ide-sidebar-empty">Your projects will appear here.</div>}
+          {!!projects.length && !filteredProjects.length && <div className="ide-sidebar-empty ide-project-filter-empty">No projects match “{projectSearch}”.<button onClick={() => setProjectSearch('')}>Clear filter</button></div>}
         </div>
         <div className="ide-sidebar-nav">
           {navGroups.map(group => <section className="ide-nav-group" key={group.label}>
@@ -1109,7 +1111,7 @@ function Dashboard({ session, initialPlan, onSignOut }) {
             {group.items.map(item => <button key={item.id} className={'ide-nav-item ' + (activePane === item.id || (item.id === 'conversations' && activePane === 'conversation') ? 'active' : '')} aria-current={activePane === item.id || (item.id === 'conversations' && activePane === 'conversation') ? 'page' : undefined} onClick={() => setPane(item.id)}><item.icon size={15}/><span>{item.label}</span>{navCount(item) !== '' && Number(navCount(item)) > 0 && <small>{navCount(item)}</small>}</button>)}
           </section>)}
         </div>
-        <div className="ide-explorer-section-head conversation-tree-head"><span><ChevronDown size={13}/> CONVERSATION FILES</span><button title="Import conversation" onClick={requestSaveConversation}><Plus size={14}/></button></div>
+        <div className="ide-explorer-section-head conversation-tree-head"><span><ChevronDown size={13}/> CONVERSATION FILES <small className="ide-tree-count">{projectConversations.length}</small></span><button title="Import conversation" aria-label="Import conversation" onClick={requestSaveConversation}><Plus size={14}/></button></div>
         <div className="ide-conversation-tree">
           {projectConversations.map(conversation => <button key={conversation.id} className={'ide-file-node ' + (activeConversationId === conversation.id ? 'selected' : '')} onClick={() => openConversation(conversation)}><FileText size={14}/><span>{conversation.title}</span>{conversation.cleaned_spec && <span className="ide-spec-dot" title="Specification available"/>}</button>)}
           {!projectConversations.length && <div className="ide-sidebar-empty">No conversation files yet.<button onClick={requestSaveConversation}>Import your first conversation</button></div>}
@@ -1300,11 +1302,19 @@ function Dashboard({ session, initialPlan, onSignOut }) {
     </div>
 
     <nav className="ide-mobile-dock" aria-label="Mobile workspace navigation">
-      <button className={!mobileAgentVisible && activePane === 'overview' ? 'active' : ''} onClick={() => setPane('overview')}><LayoutDashboard size={16}/><span>Overview</span></button>
-      <button className={!mobileAgentVisible && (activePane === 'conversations' || activePane === 'conversation') ? 'active' : ''} aria-current={!mobileAgentVisible && (activePane === 'conversations' || activePane === 'conversation') ? 'page' : undefined} onClick={() => setPane('conversations')}><MessageSquareText size={16}/><span>Vault</span></button>
-      <button className={!mobileAgentVisible && activePane === 'inbox' ? 'active' : ''} onClick={() => setPane('inbox')}><Inbox size={16}/><span>Inbox</span>{captureInbox.length > 0 && <em>{captureInbox.length}</em>}</button>
-      <button className={mobileAgentVisible ? 'active' : ''} onClick={() => setMobileAgentVisible(true)}><Bot size={16}/><span>Agent</span></button>
+      <button className={!mobileAgentVisible && !mobileNavOpen && activePane === 'overview' ? 'active' : ''} aria-current={!mobileAgentVisible && !mobileNavOpen && activePane === 'overview' ? 'page' : undefined} onClick={() => setPane('overview')}><LayoutDashboard size={16}/><span>Overview</span></button>
+      <button className={!mobileAgentVisible && !mobileNavOpen && activePane === 'projects' ? 'active' : ''} aria-current={!mobileAgentVisible && !mobileNavOpen && activePane === 'projects' ? 'page' : undefined} onClick={() => setPane('projects')}><FolderKanban size={16}/><span>Projects</span></button>
+      <button className={!mobileAgentVisible && !mobileNavOpen && (activePane === 'conversations' || activePane === 'conversation') ? 'active' : ''} aria-current={!mobileAgentVisible && !mobileNavOpen && (activePane === 'conversations' || activePane === 'conversation') ? 'page' : undefined} onClick={() => setPane('conversations')}><MessageSquareText size={16}/><span>Vault</span></button>
+      <button className={mobileAgentVisible ? 'active' : ''} aria-pressed={mobileAgentVisible} onClick={() => { setMobileNavOpen(false); setMobileAgentVisible(true) }}><Bot size={16}/><span>Agent</span></button>
+      <button className={mobileNavOpen || (!mobileAgentVisible && !['overview','projects','conversations','conversation'].includes(activePane)) ? 'active' : ''} aria-expanded={mobileNavOpen} aria-controls="ide-mobile-more-menu" onClick={() => { setMobileAgentVisible(false); setMobileNavOpen(value => !value) }}><Menu size={16}/><span>More</span></button>
     </nav>
+    {mobileNavOpen && <div className="ide-mobile-more-shell">
+      <button className="ide-mobile-more-dismiss" aria-label="Close workspace navigation" onClick={() => setMobileNavOpen(false)}/>
+      <nav className="ide-mobile-more" id="ide-mobile-more-menu" aria-label="More workspace destinations">
+        <div className="ide-mobile-more-header"><span><small>VIBEVAULT</small><strong>Workspace navigation</strong></span><button aria-label="Close menu" onClick={() => setMobileNavOpen(false)}><X size={17}/></button></div>
+        {navGroups.map(group => <section className="ide-mobile-more-group" key={group.label}><span>{group.label}</span>{group.items.map(item => <button key={item.id} className={activePane === item.id || (item.id === 'conversations' && activePane === 'conversation') ? 'active' : ''} aria-current={activePane === item.id || (item.id === 'conversations' && activePane === 'conversation') ? 'page' : undefined} onClick={() => setPane(item.id)}><item.icon size={16}/><span>{item.label}</span>{navCount(item) !== '' && Number(navCount(item)) > 0 && <small>{navCount(item)}</small>}</button>)}</section>)}
+      </nav>
+    </div>}
 
     {modal?.type === 'handoff' && <HandoffModal projects={projects} activeProjectId={activeProject?.id || ''} conversations={conversations} selectedIds={selectedIds} bundleModes={bundleModes} skills={skills} activeSkillId={activeSkillId} targetAi={targetAi} taskPrompt={taskPrompt} providerPreferences={providerPreferences} isPro={isPro} preview={makeAgentMd()} onProjectChange={projectId => { setActiveProjectId(projectId); setSelectedIds([]); setActiveConversationId(null) }} onToggleConversation={toggleConversation} onModeChange={(id, mode) => setBundleModes(current => ({...current,[id]:mode}))} onSkillChange={setActiveSkillId} onTargetChange={setTargetAi} onTaskChange={setTaskPrompt} onManagePreferences={() => setModal({ type: 'ai' })} onClose={() => setModal(null)} onCopy={() => saveHandoff(true)} onDownload={downloadHandoff} onOpen={openInAI}/>}
     {searchOpen && <div className="ide-search-backdrop" onMouseDown={event => event.target === event.currentTarget && setSearchOpen(false)}><section className="ide-search-dialog" role="dialog" aria-modal="true" aria-label="Search VibeVault"><div className="ide-search-input-wrap"><Search size={18}/><input autoFocus value={searchQuery} onChange={event => setSearchQuery(event.target.value)} onKeyDown={event => event.key === 'Escape' && setSearchOpen(false)} placeholder="Search projects, conversations, decisions and summaries…"/><kbd>ESC</kbd></div><div className="ide-search-results">{searchResults.map(result => <button key={result.kind + result.id} onClick={() => openWorkspaceSearchResult(result)}><span className="ide-search-result-icon">{result.kind === 'project' ? <FolderKanban size={16}/> : result.kind === 'conversation' ? <MessageSquareText size={16}/> : result.kind === 'decision' ? <CircleDot size={16}/> : <History size={16}/>}</span><span><strong>{result.title}</strong><small>{result.detail}</small></span><em>{result.kind}</em></button>)}{!searchResults.length && <div className="ide-search-empty">No matching records. Try a project or conversation title.</div>}</div><div className="ide-search-footer"><span>Searches your saved projects and project records</span><span>ESC to close</span></div></section></div>}
