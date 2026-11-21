@@ -928,7 +928,10 @@ function Dashboard({ session, initialPlan, onSignOut }) {
   function makeAgentMd(targetOverride = targetAi) {
     const projectRules = activeProject?.project_rules?.trim() || 'No project-specific rules have been added yet.'
     const style = profile?.global_style?.trim() || 'No global style preferences have been set.'
-    const providerRole = providerPreferences.providers?.[targetOverride]?.role || 'No provider-specific role preference set.'
+    const destinationAgent = providerPreferences.providers?.[targetOverride] || {}
+    const agentName = destinationAgent.agent_name || targetOverride
+    const agentModel = destinationAgent.model || 'Not specified'
+    const providerRole = destinationAgent.role || 'No provider-specific role preference set.'
     const onboardingProfile = providerPreferences.profile || {}
     const agentBehaviour = onboardingProfile.collaboration === 'guided'
       ? 'Guide the user step by step, explain the plan and check before moving on.'
@@ -943,7 +946,7 @@ function Dashboard({ session, initialPlan, onSignOut }) {
       const body = useClean ? conversation.cleaned_spec : conversation.raw_content
       return `## Conversation ${index + 1}: ${conversation.title}\nSource: ${conversation.source_ai}\nTags: ${(conversation.tags || []).join(', ') || 'None'}\nContext mode: ${sourceLabel}\n\n${body}`
     }).join('\n\n---\n\n')
-    return `# AGENT.md — ${activeProject?.title || 'Untitled Project'}\n\n## HANDOFF TARGET\n${targetOverride}\n\n## AI PROVIDER ROLE\n${providerRole}\n\n## ASSIGNED TASK ROLE\n${activeSkill?.role_name || 'General Assistant'}\n\n## ROLE INSTRUCTIONS\n${activeSkill?.instructions || 'Act as a careful, context-aware collaborator. Ask before making assumptions.'}\n\n## GLOBAL WORKING STYLE\n${style}\n\n## PERSONAL WORKING PREFERENCES\nFocus: ${onboardingProfile.focus || 'not specified'}\nExperience: ${onboardingProfile.experience || 'not specified'}\nAgent behaviour: ${agentBehaviour}\nResponse detail: ${responseDetail}\n\n${taskSection}## PROJECT DESCRIPTION\n${activeProject?.description || 'No project description supplied.'}\n\n## PROJECT RULES\n${projectRules}\n\n## BUNDLED SOURCE MATERIAL\n${convoContext || 'No raw conversations selected. Do not invent missing context.'}\n\n## MANDATORY 3-POINT CONFIRMATION — DO THIS BEFORE WRITING CODE\n1. **Confirm the role:** State that you understand and accept the assigned role: ${activeSkill?.role_name || 'General Assistant'}.\n2. **Prove context transfer:** Summarize the supplied raw conversations and identify the user's actual goals, constraints and decisions without silently rewriting the source material.\n3. **Expose uncertainty:** List assumptions, contradictions and missing information. Ask focused questions where needed. Do not write or modify code until the user approves this confirmation.\n\n---\nEnd of handoff. Preserve the user's original intent and ask before changing established decisions.\n`
+    return `# AGENT.md — ${activeProject?.title || 'Untitled Project'}\n\n## RECEIVING AGENT\nName: ${agentName}\nProvider: ${targetOverride}\nModel: ${agentModel}\n\n## AI PROVIDER ROLE\n${providerRole}\n\n## ASSIGNED TASK ROLE\n${activeSkill?.role_name || 'General Assistant'}\n\n## ROLE INSTRUCTIONS\n${activeSkill?.instructions || 'Act as a careful, context-aware collaborator. Ask before making assumptions.'}\n\n## GLOBAL WORKING STYLE\n${style}\n\n## PERSONAL WORKING PREFERENCES\nFocus: ${onboardingProfile.focus || 'not specified'}\nExperience: ${onboardingProfile.experience || 'not specified'}\nAgent behaviour: ${agentBehaviour}\nResponse detail: ${responseDetail}\n\n${taskSection}## PROJECT DESCRIPTION\n${activeProject?.description || 'No project description supplied.'}\n\n## PROJECT RULES\n${projectRules}\n\n## BUNDLED SOURCE MATERIAL\n${convoContext || 'No raw conversations selected. Do not invent missing context.'}\n\n## MANDATORY 3-POINT CONFIRMATION — DO THIS BEFORE WRITING CODE\n1. **Confirm the role:** State that you understand and accept the assigned role: ${activeSkill?.role_name || 'General Assistant'}.\n2. **Prove context transfer:** Summarize the supplied raw conversations and identify the user's actual goals, constraints and decisions without silently rewriting the source material.\n3. **Expose uncertainty:** List assumptions, contradictions and missing information. Ask focused questions where needed. Do not write or modify code until the user approves this confirmation.\n\n---\nEnd of handoff. Preserve the user's original intent and ask before changing established decisions.\n`
   }
 
   async function saveHandoff(copyToClipboard = true, targetOverride = targetAi, contentOverride = null) {
@@ -1026,6 +1029,8 @@ function Dashboard({ session, initialPlan, onSignOut }) {
 
   const currentPlan = isPro ? 'PRO' : 'STARTER'
   const selectedProvider = AI_PROVIDERS.find(provider => provider.name === targetAi) || AI_PROVIDERS[0]
+  const selectedAgentSettings = providerPreferences.providers?.[targetAi] || {}
+  const selectedAgentName = selectedAgentSettings.agent_name || targetAi
   const projectConversations = activeProject ? conversations.filter(item => item.project_id === activeProject.id) : []
   const activeConversation = projectConversations.find(item => item.id === activeConversationId) || null
   const projectDecisions = activeProject ? decisions.filter(item => item.project_id === activeProject.id) : []
@@ -1260,7 +1265,7 @@ function Dashboard({ session, initialPlan, onSignOut }) {
           <div className="ide-agent-section-title"><span>DESTINATION AI</span><button onClick={() => setPane('preferences')}>MANAGE</button></div>
           <button className="ide-agent-provider" onClick={() => setModal({ type: 'ai' })}>
             <AIProviderLogo provider={selectedProvider} className="ide-agent-logo"/>
-            <span><strong>{targetAi}</strong><small>{providerPreferences.providers?.[targetAi]?.role || selectedProvider.role}</small></span>
+            <span><strong>{selectedAgentName}</strong><small>{targetAi} · {selectedAgentSettings.model || 'Model not specified'}</small><small>{selectedAgentSettings.role || selectedProvider.role}</small></span>
             <ChevronDown size={15}/>
           </button>
           <label className="ide-agent-field">TASK ROLE<select className="ide-agent-select" value={activeSkillId} onChange={event => setActiveSkillId(event.target.value)}><option value="">Select a task role</option>{skills.map(skill => <option key={skill.id} value={skill.id}>{skill.role_name}</option>)}</select></label>
@@ -1393,7 +1398,7 @@ function TransferAgentChooser({ preferences, targetAi, setTargetAi, agentMode, s
     </div>
     {agentMode === 'saved' ? <div className="transfer-saved-agent">{savedProviders.length ? <>
       <label className="field-label">SAVED AI AGENT<select className="field-input" value={savedTarget} onChange={event => setTargetAi(event.target.value)}>{savedProviders.map(provider => <option value={provider.name} key={provider.name}>{provider.name}</option>)}</select></label>
-      <div className="transfer-agent-identity"><AIProviderLogo provider={AI_PROVIDERS.find(provider => provider.name === savedTarget)} className="transfer-provider-logo"/><span><strong>{savedTarget}</strong><small>{preferences.providers?.[savedTarget]?.role || 'Saved AI agent'}</small></span><CheckCircle2 size={16}/></div>
+      <div className="transfer-agent-identity"><AIProviderLogo provider={AI_PROVIDERS.find(provider => provider.name === savedTarget)} className="transfer-provider-logo"/><span><strong>{preferences.providers?.[savedTarget]?.agent_name || savedTarget}</strong><small>{savedTarget} · {preferences.providers?.[savedTarget]?.model || 'Model not specified'}</small><small>{preferences.providers?.[savedTarget]?.role || 'Purpose not specified'}</small></span><CheckCircle2 size={16}/></div>
     </> : <div className="transfer-no-saved"><span>No saved AI agents yet.</span><small>Choose an agent for this transfer, or complete AI workspace setup first.</small></div>}</div> : <div className="transfer-manual-agent">
       <label className="field-label">AI PROVIDER<select className="field-input" value={manualTarget} onChange={event => setManualTarget(event.target.value)}>{AI_PROVIDERS.map(provider => <option value={provider.name} key={provider.name}>{provider.name}</option>)}</select></label>
       <label className="field-label">WHAT SHOULD THIS AGENT BE USED FOR?<textarea className="field-input field-textarea" value={purpose} onChange={event => setPurpose(event.target.value)} placeholder="For example: review the architecture, identify security gaps, and propose a plan." required/></label>
@@ -1531,13 +1536,26 @@ function HandoffModal({ projects, activeProjectId, conversations, selectedIds, b
   const projectConversations = conversations.filter(conversation => conversation.project_id === activeProjectId)
   const selectedCount = projectConversations.filter(conversation => selectedIds.includes(conversation.id)).length
   const activeSkill = skills.find(skill => skill.id === activeSkillId) || skills[0]
+  const selectedIndex = Math.max(0, providers.findIndex(provider => provider.name === targetAi))
+  const orbitOffsets = providers.length <= 5 ? Array.from({ length: providers.length }, (_, index) => index - Math.floor(providers.length / 2)) : [-2, -1, 0, 1, 2]
+  const orbitEntries = providers.length ? orbitOffsets.map(offset => ({ offset, provider: providers[(selectedIndex + offset + providers.length) % providers.length] })) : []
+  const selectedAgent = providerPreferences.providers?.[targetAi] || {}
+  const selectedAgentName = selectedAgent.agent_name || targetAi
+  const selectedProvider = providers.find(provider => provider.name === targetAi) || AI_PROVIDERS.find(provider => provider.name === targetAi)
+  const readinessItems = [
+    { label: 'Project', ready: Boolean(activeProjectId) },
+    { label: 'Task role', ready: Boolean(activeSkill) },
+    { label: 'Receiving agent', ready: Boolean(selectedProvider) },
+    { label: 'Task brief', ready: Boolean(taskPrompt.trim()) }
+  ]
+  const readinessCount = readinessItems.filter(item => item.ready).length
   const labels = ['Project & role', 'Source context', 'Receiving AI', 'Review handoff']
   const next = () => {
     if (step === 0 && (!activeProjectId || !activeSkill)) return
     if (step === 2 && !providers.some(provider => provider.name === targetAi)) return
     setStep(current => Math.min(3, current + 1))
   }
-  return <Modal title="Prepare an AGENT.md handoff" eyebrow="GUIDED CONTEXT TRANSFER" onClose={onClose} wide>
+  return <Modal title="Agent Handoff Studio" eyebrow="GUIDED CONTEXT TRANSFER" onClose={onClose} wide>
     <div className="handoff-wizard">
       <div className="handoff-progress"><div className="handoff-progress-copy"><span>STEP {step + 1} OF 4</span><strong>{labels[step]}</strong></div><div className="handoff-progress-track"><span style={{width: ((step + 1) * 25) + '%'}}/></div></div>
       {step === 0 && <div className="handoff-step">
@@ -1556,12 +1574,34 @@ function HandoffModal({ projects, activeProjectId, conversations, selectedIds, b
       </div>}
       {step === 2 && <div className="handoff-step">
         <span className="ide-kicker">03 / CHOOSE THE RECEIVING AI</span><h3>Where should this context continue?</h3><p>Choose one of the providers enabled in your saved AI preferences.</p>
-        {providers.length ? <><div className="handoff-provider-grid">{providers.map(provider => <button type="button" key={provider.name} className={'handoff-provider-option ' + (targetAi === provider.name ? 'selected' : '')} onClick={() => onTargetChange(provider.name)}><AIProviderLogo provider={provider} className="handoff-provider-logo"/><span><strong>{provider.name}</strong><small>{providerPreferences.providers?.[provider.name]?.role || provider.role}</small></span>{targetAi === provider.name && <CheckCircle2 size={16}/>}</button>)}</div><div className="handoff-preference-note"><strong>Saved working preferences</strong><span>{providerPreferences.profile?.collaboration || 'balanced'} collaboration · {providerPreferences.profile?.detail || 'clear'} response detail</span><small>Provider purpose: {providerPreferences.providers?.[targetAi]?.role || 'No additional role saved.'}</small></div></> : <div className="ide-panel-empty"><Layers3 size={20}/><strong>No saved AI providers</strong><span>Configure at least one receiving AI before generating this handoff.</span><Button variant="ghost" onClick={onManagePreferences}>MANAGE AI PREFERENCES</Button></div>}
+        {providers.length ? <>
+          <div className="handoff-orbit-heading"><strong>{providers.length} SAVED AGENT{providers.length === 1 ? '' : 'S'}</strong><span>Select the agent that should receive this project context.</span></div>
+          <div className="handoff-agent-orbit" aria-label="Saved AI agent selector">
+            <div className="handoff-orbit-arc" aria-hidden="true"/>
+            {orbitEntries.map(({ provider, offset }) => {
+              const settings = providerPreferences.providers?.[provider.name] || {}
+              const selected = targetAi === provider.name
+              return <button type="button" key={provider.name} aria-pressed={selected} aria-label={'Select ' + (settings.agent_name || provider.name) + ', ' + provider.name} data-position={offset} className={'handoff-orbit-card ' + (selected ? 'selected' : '')} style={{ left: 'calc(50% + ' + (offset * 158) + 'px)', top: (14 + Math.abs(offset) * 25) + 'px', zIndex: 5 - Math.abs(offset) }} onClick={() => onTargetChange(provider.name)}>
+                <span className="handoff-orbit-topline"><AIProviderLogo provider={provider} className="handoff-orbit-logo"/><span className="handoff-orbit-selected">{selected ? <><CheckCircle2 size={11}/> SELECTED</> : provider.name}</span></span>
+                <strong className="handoff-orbit-name">{settings.agent_name || provider.name}</strong>
+                <span className="handoff-orbit-provider">{provider.name}</span>
+                <span className="handoff-orbit-facts"><span><small>MODEL</small><strong>{settings.model || 'Not specified'}</strong></span><span><small>PURPOSE</small><strong>{settings.role || provider.role}</strong></span></span>
+              </button>
+            })}
+          </div>
+          <div className="handoff-selected-agent">
+            <div className="handoff-selected-main"><AIProviderLogo provider={selectedProvider} className="handoff-selected-logo"/><span><small>RECEIVING AGENT</small><strong>{selectedAgentName}</strong><em>{targetAi} · {selectedAgent.model || 'Model not specified'}</em></span></div>
+            <div className="handoff-selected-purpose"><small>ASSIGNED PURPOSE</small><strong>{selectedAgent.role || selectedProvider?.role || 'Purpose not specified'}</strong></div>
+            <button type="button" onClick={onManagePreferences}>EDIT AGENT DETAILS</button>
+          </div>
+          <div className="handoff-preference-note"><strong>Saved working preferences</strong><span>{providerPreferences.profile?.collaboration || 'balanced'} collaboration · {providerPreferences.profile?.detail || 'clear'} response detail</span><small>Agent name, provider, model and purpose are included in the generated handoff.</small></div>
+        </> : <div className="ide-panel-empty"><Layers3 size={20}/><strong>No saved AI providers</strong><span>Configure at least one receiving AI before generating this handoff.</span><Button variant="ghost" onClick={onManagePreferences}>MANAGE AI PREFERENCES</Button></div>}
         <label className="field-label">WHAT SHOULD THE RECEIVING AI DO?<textarea className="field-input field-textarea" value={taskPrompt} onChange={event => onTaskChange(event.target.value)} placeholder="Describe the next task, expected outcome and any boundaries."/></label>
       </div>}
       {step === 3 && <div className="handoff-step handoff-preview-step">
         <span className="ide-kicker">04 / REVIEW BEFORE TRANSFER</span><h3>Review the generated context.</h3><p>Check the selected project, role, saved preferences, task and source material before copying or launching the receiving AI.</p>
-        <div className="handoff-preview-meta"><span><strong>{projects.find(project => project.id === activeProjectId)?.title || 'No project'}</strong><small>Project</small></span><span><strong>{activeSkill?.role_name || 'No role'}</strong><small>Assigned role</small></span><span><strong>{targetAi}</strong><small>Destination AI</small></span><span><strong>{selectedCount}</strong><small>Source threads</small></span></div>
+        <div className="handoff-preview-meta"><span><strong>{projects.find(project => project.id === activeProjectId)?.title || 'No project'}</strong><small>Project</small></span><span><strong>{activeSkill?.role_name || 'No role'}</strong><small>Assigned role</small></span><span><strong>{selectedAgentName}</strong><small>{targetAi} · {selectedAgent.model || 'Model not specified'}</small></span><span><strong>{selectedCount}</strong><small>Source threads</small></span></div>
+        <div className="handoff-readiness"><div className="handoff-readiness-head"><span>HANDOFF READINESS</span><strong>{readinessCount}/4 details ready</strong></div><div className="handoff-readiness-track"><span style={{ width: (readinessCount * 25) + '%' }}/></div><div className="handoff-readiness-items">{readinessItems.map(item => <span className={item.ready ? 'ready' : ''} key={item.label}>{item.ready ? <CheckCircle2 size={12}/> : <CircleHelp size={12}/>} {item.label}</span>)}</div><small>Estimated payload: ~{Math.ceil((preview || '').length / 4).toLocaleString()} tokens. This is a size estimate, not a guarantee of the receiving model's context limit.</small></div>
         <pre className="handoff-preview-code">{preview}</pre>
       </div>}
       <div className="modal-actions handoff-actions">
@@ -1576,7 +1616,7 @@ function HandoffModal({ projects, activeProjectId, conversations, selectedIds, b
 
 function AIWorkspaceModal({ initialPreferences, onboarding, onClose, onSave }) {
   const [step, setStep] = useState(0)
-  const [providers, setProviders] = useState(() => Object.fromEntries(AI_PROVIDERS.map(provider => [provider.name, { enabled: Boolean(initialPreferences.providers?.[provider.name]?.enabled), role: initialPreferences.providers?.[provider.name]?.role || provider.role }])))
+  const [providers, setProviders] = useState(() => Object.fromEntries(AI_PROVIDERS.map(provider => { const saved = initialPreferences.providers?.[provider.name] || {}; return [provider.name, { enabled: Boolean(saved.enabled), agent_name: saved.agent_name || provider.name, model: saved.model || '', role: saved.role || provider.role }] })))
   const [profile, setProfile] = useState(() => ({ focus: initialPreferences.profile?.focus || 'software', experience: initialPreferences.profile?.experience || 'building', collaboration: initialPreferences.profile?.collaboration || 'balanced', detail: initialPreferences.profile?.detail || 'clear' }))
   const [lastTarget, setLastTarget] = useState(initialPreferences.last_target || 'Claude')
   const [recommendations, setRecommendations] = useState(Boolean(initialPreferences.recommendations))
@@ -1607,12 +1647,12 @@ function AIWorkspaceModal({ initialPreferences, onboarding, onClose, onSave }) {
       {step === 2 && <div className="setup-wizard-page"><span className="setup-wizard-kicker">YOUR AI TOOLKIT</span><h3>Which AI tools do you use?</h3><p>Select the providers you use, then add the usual purpose for each selected agent.</p>
         <div className="setup-provider-list">{AI_PROVIDERS.map(provider => { const value = providers[provider.name]; return <article className={'setup-provider-row ' + (value.enabled ? 'selected' : '')} key={provider.name}>
           <label className="setup-provider-select"><input type="checkbox" checked={value.enabled} onChange={event => setProviders(current => ({...current,[provider.name]:{...current[provider.name],enabled:event.target.checked}}))}/><AIProviderLogo provider={provider} className="setup-provider-logo"/><span><strong>{provider.name}</strong><small>{provider.description}</small></span><span className="setup-provider-check">{value.enabled ? <CheckCircle2 size={17}/> : <Plus size={15}/>}</span></label>
-          {value.enabled && <label className="field-label setup-role-field">WHAT DO YOU USE {provider.name.toUpperCase()} FOR?<input className="field-input" value={value.role} onChange={event => setProviders(current => ({...current,[provider.name]:{...current[provider.name],role:event.target.value}}))} placeholder="e.g. UI implementation, backend review, research"/></label>}
+          {value.enabled && <div className="setup-agent-fields"><label className="field-label">AGENT NAME<input className="field-input" value={value.agent_name} onChange={event => setProviders(current => ({...current,[provider.name]:{...current[provider.name],agent_name:event.target.value}}))} placeholder={'Name your ' + provider.name + ' agent'}/></label><label className="field-label">MODEL<input className="field-input" value={value.model} onChange={event => setProviders(current => ({...current,[provider.name]:{...current[provider.name],model:event.target.value}}))} placeholder="e.g. model or version you use"/></label><label className="field-label setup-role-field">ASSIGNED PURPOSE<input className="field-input" value={value.role} onChange={event => setProviders(current => ({...current,[provider.name]:{...current[provider.name],role:event.target.value}}))} placeholder="e.g. UI implementation, backend review, research"/></label></div>}
         </article>})}</div>
       </div>}
       {step === 3 && <div className="setup-wizard-page"><span className="setup-wizard-kicker">YOUR DEFAULT WORKFLOW</span><h3>Set your preferred agent.</h3><p>VibeVault uses this default when you don't select a different destination.</p>
         <label className="field-label">DEFAULT AI AGENT<select className="field-input" value={enabledProviders.some(provider => provider.name === lastTarget) ? lastTarget : (enabledProviders[0]?.name || '')} onChange={event => setLastTarget(event.target.value)}>{enabledProviders.map(provider => <option key={provider.name} value={provider.name}>{provider.name}</option>)}</select></label>
-        {enabledProviders.length > 0 && <div className="setup-default-summary"><AIProviderLogo provider={enabledProviders.find(provider => provider.name === lastTarget) || enabledProviders[0]} className="setup-default-logo"/><span><strong>{enabledProviders.find(provider => provider.name === lastTarget)?.name || enabledProviders[0].name}</strong><small>{providers[lastTarget]?.role || enabledProviders[0].role}</small></span></div>}
+        {enabledProviders.length > 0 && <div className="setup-default-summary"><AIProviderLogo provider={enabledProviders.find(provider => provider.name === lastTarget) || enabledProviders[0]} className="setup-default-logo"/><span><strong>{providers[lastTarget]?.agent_name || enabledProviders.find(provider => provider.name === lastTarget)?.name || enabledProviders[0].name}</strong><small>{enabledProviders.find(provider => provider.name === lastTarget)?.name || enabledProviders[0].name} · {providers[lastTarget]?.model || 'Model not specified'}</small><small>{providers[lastTarget]?.role || enabledProviders[0].role}</small></span></div>}
         <label className="recommendation-toggle"><input type="checkbox" checked={recommendations} onChange={event => setRecommendations(event.target.checked)}/><span><strong>Suggest a suitable AI for each task</strong><small>Suggestions never change the destination unless you approve them.</small></span></label>
         <div className="setup-review-summary"><strong>Your setup</strong><span>{enabledProviders.length} providers · {profile.collaboration} agent style · {profile.detail} detail</span><small>You can change these settings later.</small></div>
       </div>}
