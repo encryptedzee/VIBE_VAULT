@@ -73,6 +73,15 @@ create index if not exists conversations_source_idx on public.conversations(user
 create index if not exists agent_skills_user_created_idx on public.agent_skills(user_id, created_at);
 create index if not exists handoffs_user_created_idx on public.handoffs(user_id, created_at desc);
 
+-- Ensure every table using set_updated_at has the target column, including older installs.
+-- CREATE TABLE IF NOT EXISTS does not add columns to tables that already exist.
+alter table public.profiles add column if not exists updated_at timestamptz not null default now();
+alter table public.projects add column if not exists updated_at timestamptz not null default now();
+alter table public.conversations add column if not exists updated_at timestamptz not null default now();
+alter table public.agent_skills add column if not exists updated_at timestamptz not null default now();
+alter table public.capture_inbox add column if not exists updated_at timestamptz not null default now();
+alter table public.project_decisions add column if not exists updated_at timestamptz not null default now();
+
 -- Keep updated_at current on editable records.
 create or replace function public.set_updated_at()
 returns trigger language plpgsql as $$
