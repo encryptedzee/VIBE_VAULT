@@ -440,3 +440,13 @@ grant select, insert, update, delete on public.capture_inbox, public.integration
   public.project_decisions, public.session_summaries to authenticated;
 grant update (ai_preferences, onboarding_completed) on public.profiles to authenticated;
 
+
+-- Compatibility repair for databases created before updated_at was added.
+-- Every table with a set_updated_at trigger must expose this column.
+alter table public.profiles add column if not exists updated_at timestamptz not null default now();
+alter table public.projects add column if not exists updated_at timestamptz not null default now();
+alter table public.conversations add column if not exists updated_at timestamptz not null default now();
+alter table public.agent_skills add column if not exists updated_at timestamptz not null default now();
+alter table public.capture_inbox add column if not exists updated_at timestamptz not null default now();
+alter table public.project_decisions add column if not exists updated_at timestamptz not null default now();
+
