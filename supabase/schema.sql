@@ -95,27 +95,23 @@ drop trigger if exists agent_skills_set_updated_at on public.agent_skills;
 create trigger agent_skills_set_updated_at before update on public.agent_skills
 for each row execute function public.set_updated_at();
 
--- New users receive a profile and the three built-in role templates.
+-- Keep the auth trigger minimal: only create the required profile.
+-- Default agent roles are provisioned by the app after authentication, so an
+-- optional role-seeding operation can never abort account creation.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer
 set search_path = ''
-as $$
+as $
 begin
   insert into public.profiles (id, email, display_name)
   values (new.id, coalesce(new.email, ''), coalesce(new.raw_user_meta_data ->> 'display_name', ''))
   on conflict (id) do nothing;
 
-  insert into public.agent_skills (user_id, role_name, instructions, is_default)
-  values
-    (new.id, 'Backend Architect', 'Design reliable APIs, data models, authorization and backend services. Explain trade-offs before implementation.', true),
-    (new.id, 'UI Designer', 'Translate product intent into precise, accessible interfaces. Preserve the existing design system and responsive behavior.', true),
-    (new.id, 'Image Prompt Engineer', 'Turn the supplied visual direction into detailed, production-ready image generation prompts. Preserve all constraints.', true)
-  on conflict (user_id, role_name) do nothing;
   return new;
 end;
-$$;
+$;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created after insert on auth.users
