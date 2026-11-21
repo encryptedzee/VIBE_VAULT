@@ -566,8 +566,28 @@ function Dashboard({ session, initialPlan, onSignOut }) {
     const load = async () => {
       setBusy(true)
       try {
-        const [profileRes, projectRes, convoRes, skillRes, handoffRes, inboxRes, tokenRes, decisionRes, summaryRes] = await Promise.all([
-          supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
+        // Load the profile first: onboarding must not wait for unrelated workspace tables.
+        const profileRes = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+        if (profileRes.error) throw profileRes.error
+        let nextProfile = profileRes.data
+        if (!nextProfile) {
+          const { data, error } = await supabase.from('profiles').upsert({
+            id: user.id,
+            email: user.email,
+            display_name: user.user_metadata?.display_name || ''
+          }).select().single()
+          if (error) throw error
+          nextProfile = data
+        }
+        if (!mounted) return
+        setProfile(nextProfile)
+        const preferences = nextProfile.ai_preferences || EMPTY_AI_PREFERENCES
+        setProviderPreferences(preferences)
+        setTargetAi(preferences.last_target || 'Claude')
+        if (!nextProfile.onboarding_completed) setModal({ type: 'ai', onboarding: true })
+
+        // Secondary workspace data is loaded after onboarding has been scheduled.
+        const results = await Promise.allSettled([
           supabase.from('projects').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
           supabase.from('conversations').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
           supabase.from('agent_skills').select('*').eq('user_id', user.id).order('created_at', { ascending: true }),
@@ -577,41 +597,49 @@ function Dashboard({ session, initialPlan, onSignOut }) {
           supabase.from('project_decisions').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(150),
           supabase.from('session_summaries').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(100)
         ])
-        for (const result of [profileRes, projectRes, convoRes, skillRes, handoffRes, inboxRes, tokenRes, decisionRes, summaryRes]) if (result.error) throw result.error
         if (!mounted) return
-        let nextProfile = profileRes.data
-        if (!nextProfile) {
-          const { data, error } = await supabase.from('profiles').upsert({ id: user.id, email: user.email, display_name: user.user_metadata?.display_name || '' }).select().single()
-          if (error) throw error
-          nextProfile = data
-        }
-        setProfile(nextProfile)
-        setProviderPreferences(nextProfile.ai_preferences || EMPTY_AI_PREFERENCES)
-        setTargetAi(nextProfile.ai_preferences?.last_target || 'Claude')
-        if (!nextProfile.onboarding_completed) setModal({ type: 'ai', onboarding: true })
-        setIntegrationTokens(tokenRes.data || [])
-        setCaptureInbox(inboxRes.data || [])
-        setDecisions(decisionRes.data || [])
-        setSessionSummaries(summaryRes.data || [])
-        setProjects(projectRes.data || [])
-        setConversations(convoRes.data || [])
-        let nextSkills = skillRes.data || []
-        // Provision default agent roles after authentication so optional role seeding never blocks signup.
+        const data = results.map((result, index) => {
+          if (result.status === 'rejected') {
+            showToast(result.reason?.message || 'Some workspace data could not be loaded.')
+            return []
+          }
+          if (result.value.error) {
+            showToast(result.value.error.message || 'Some workspace data could not be loaded.')
+            return []
+          }
+          return result.value.data || []
+        })
+        const [projectData, conversationData, skillData, handoffData, inboxData, tokenData, decisionData, summaryData] = data
+        setProjects(projectData)
+        setConversations(conversationData)
+        setHandoffs(handoffData)
+        setCaptureInbox(inboxData)
+        setIntegrationTokens(tokenData)
+        setDecisions(decisionData)
+        setSessionSummaries(summaryData)
+        let nextSkills = skillData
         if (nextSkills.length === 0) {
           const defaults = DEFAULT_SKILLS.map(skill => ({ ...skill, user_id: user.id }))
           const { data: insertedSkills, error: insertSkillsError } = await supabase.from('agent_skills').insert(defaults).select()
-          if (insertSkillsError) throw insertSkillsError
-          nextSkills = insertedSkills || []
+          if (insertSkillsError) showToast(insertSkillsError.message || 'Default agents could not be created.')
+          else nextSkills = insertedSkills || []
         }
+        if (!mounted) return
         setSkills(nextSkills)
-        setHandoffs(handoffRes.data || [])
-        setActiveProjectId(projectRes.data?.[0]?.id || null)
-        setActiveSkillId(nextSkills?.[0]?.id || '')
-      } catch (error) { showToast(error.message || 'Could not load vault data.') }
-      finally { if (mounted) setBusy(false) }
+        setActiveProjectId(projectData[0]?.id || null)
+        setActiveSkillId(nextSkills[0]?.id || '')
+      } catch (error) {
+        if (mounted) showToast(error.message || 'Could not load your account profile.')
+      } finally {
+        if (mounted) setBusy(false)
+      }
     }
     load()
     return () => { mounted = false }
+  // Initial load per authenticated identity.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user.id])
+
   // Initial load per authenticated identity.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id])
