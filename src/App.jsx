@@ -911,6 +911,14 @@ function Dashboard({ session, initialPlan, onSignOut }) {
     setSkills(current => [...current, data]); setActiveSkillId(data.id); setModal(null); showToast('Custom role added.')
   }
 
+  async function updateDisplayName(value) {
+    const displayName = value.trim()
+    if (!displayName) throw new Error('Enter a display name.')
+    const { data, error } = await supabase.from('profiles').update({ display_name: displayName }).eq('id', user.id).select().single()
+    if (error) throw error
+    setProfile(data); setModal(null); showToast('Profile updated.')
+  }
+
   async function updateGlobalStyle(value) {
     const { data, error } = await supabase.from('profiles').upsert({ id: user.id, email: user.email, display_name: profile?.display_name || user.user_metadata?.display_name || '', global_style: value }, { onConflict: 'id' }).select().single()
     if (error) throw error
@@ -1039,6 +1047,7 @@ function Dashboard({ session, initialPlan, onSignOut }) {
     ]},
     { label: 'ACCOUNT', items: [
       { id: 'subscription', label: 'Subscription', icon: Zap },
+      { id: 'profile', label: 'Profile', icon: Bot },
       { id: 'settings', label: 'Settings', icon: Settings2 }
     ]}
   ]
@@ -1207,6 +1216,11 @@ function Dashboard({ session, initialPlan, onSignOut }) {
             {!isPro && <div className="ide-bottom-note"><Zap size={15}/><span>Upgrade to Pro for unlimited projects and conversations, custom role skills and AI Smart Spec Cleaner.</span><Button onClick={() => setModal({ type: 'upgrade', plan: 'pro' })}>VIEW PRO</Button></div>}
           </div>}
 
+          {activePane === 'profile' && !busy && <div className="ide-page">
+            <div className="ide-page-heading"><div><span className="ide-kicker">YOUR VIBEVAULT IDENTITY</span><h1>Profile</h1><p>Update the name shown across your workspace. Your sign-in email remains managed by Supabase Authentication.</p></div></div>
+            <section className="ide-settings-card"><span className="ide-settings-avatar">{(profile?.display_name || user.email || 'V').slice(0,1).toUpperCase()}</span><span><strong>{profile?.display_name || user.user_metadata?.display_name || 'Vault owner'}</strong><small>{user.email}</small></span><Button onClick={() => setModal({ type: 'profile' })}>EDIT PROFILE</Button></section>
+          </div>}
+
           {activePane === 'settings' && !busy && <div className="ide-page">
             <div className="ide-page-heading"><div><span className="ide-kicker">PERSONAL ACCOUNT</span><h1>Settings</h1><p>Manage your saved working preferences and review the account currently signed in.</p></div></div>
             <section className="ide-settings-card"><span className="ide-settings-avatar">{(profile?.display_name || user.email || 'V').slice(0,1).toUpperCase()}</span><span><strong>{profile?.display_name || user.user_metadata?.display_name || 'Vault owner'}</strong><small>{user.email}</small><small>Account ID: {user.id}</small></span><Button variant="ghost" onClick={onSignOut}><LogOut size={14}/> SIGN OUT</Button></section>
@@ -1277,6 +1291,7 @@ function Dashboard({ session, initialPlan, onSignOut }) {
     {modal?.type === 'integrations' && <IntegrationsModal tokens={integrationTokens} generatedToken={generatedToken} supabaseUrl={import.meta.env.VITE_SUPABASE_URL || ''} anonKey={import.meta.env.VITE_SUPABASE_ANON_KEY || ''} onClose={() => setModal(null)} onCreate={createIntegrationToken} onRevoke={revokeIntegrationToken}/>}
     {modal?.type === 'skill' && <SkillModal onClose={() => setModal(null)} onSave={createSkill}/>}
     {modal?.type === 'style' && <StyleModal initialValue={profile?.global_style || ''} onClose={() => setModal(null)} onSave={updateGlobalStyle}/>}
+    {modal?.type === 'profile' && <ProfileModal initialValue={profile?.display_name || user.user_metadata?.display_name || ''} email={user.email || ''} onClose={() => setModal(null)} onSave={updateDisplayName}/>}
     {modal?.type === 'upgrade' && <UpgradeModal plan={modal.plan || 'pro'} message={modal.message} email={user.email} isPro={isPro} onClose={() => setModal(null)} onRefresh={refreshPlanStatus} refreshing={refreshingPlan}/>}
     {toast && <div className="toast" role="status"><CheckCircle2 size={16}/>{toast}</div>}
   </main>
@@ -1612,6 +1627,29 @@ function SkillModal({ onClose, onSave }) {
   const [busy, setBusy] = useState(false)
   const submit = async (e) => { e.preventDefault(); setBusy(true); try { await onSave(values) } catch (error) { alert(error.message) } finally { setBusy(false) } }
   return <Modal title="CREATE ROLE SKILL" eyebrow="DYNAMIC AGENT.MD" onClose={onClose}><form className="modal-form" onSubmit={submit}><label className="field-label">ROLE NAME<input className="field-input" required value={values.role_name} onChange={e => setValues({ ...values, role_name: e.target.value })} placeholder="e.g. Data Architect"/></label><label className="field-label">ROLE INSTRUCTIONS<textarea className="field-input field-textarea" required value={values.instructions} onChange={e => setValues({ ...values, instructions: e.target.value })} placeholder="Define responsibilities, working style and boundaries..."/></label><div className="modal-actions"><Button variant="ghost" type="button" onClick={onClose}>CANCEL</Button><Button disabled={busy}>{busy ? 'CREATING...' : 'CREATE SKILL'}</Button></div></form></Modal>
+}
+
+
+function ProfileModal({ initialValue, email, onClose, onSave }) {
+  const [displayName, setDisplayName] = useState(initialValue)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const submit = async event => {
+    event.preventDefault()
+    if (!displayName.trim()) { setError('Enter a display name.'); return }
+    setBusy(true); setError('')
+    try { await onSave(displayName) }
+    catch (err) { setError(err.message || 'Could not update your profile.') }
+    finally { setBusy(false) }
+  }
+  return <Modal title="Profile" eyebrow="YOUR VIBEVAULT IDENTITY" onClose={onClose}>
+    <form className="modal-form" onSubmit={submit}>
+      <label className="field-label">DISPLAY NAME<input className="field-input" value={displayName} onChange={event => setDisplayName(event.target.value)} maxLength={80} required placeholder="How should VibeVault address you?"/></label>
+      <label className="field-label">SIGN-IN EMAIL<input className="field-input" value={email} readOnly/></label>
+      {error && <div className="notice notice-error"><CircleHelp size={15}/><span>{error}</span></div>}
+      <div className="modal-actions"><Button variant="ghost" type="button" onClick={onClose}>CANCEL</Button><Button disabled={busy}>{busy ? 'SAVING…' : 'SAVE PROFILE'}</Button></div>
+    </form>
+  </Modal>
 }
 
 function StyleModal({ initialValue, onClose, onSave }) {
