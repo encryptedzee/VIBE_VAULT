@@ -24,7 +24,7 @@ const DEFAULT_SKILLS = [
 ]
 
 const AI_PROVIDERS = [
-  { name: 'Claude', logo: 'https://cdn.simpleicons.org/claude', description: 'Reasoning, writing and development', role: 'Development partner' },
+  { name: 'Claude', logo: 'https://cdn.simpleicons.org/anthropic', description: 'Reasoning, writing and development', role: 'Development partner' },
   { name: 'ChatGPT', logo: 'https://cdn.simpleicons.org/openai', description: 'Planning, analysis and general assistance', role: 'Research & planning' },
   { name: 'Gemini', logo: 'https://cdn.simpleicons.org/googlegemini', description: 'Research and multimodal workflows', role: 'Research & multimodal' },
   { name: 'Cursor', logo: 'https://cdn.simpleicons.org/cursor', description: 'Code editing and implementation', role: 'IDE implementation' },
