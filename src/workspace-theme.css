@@ -232,3 +232,30 @@
   .ide-shell *::before,
   .ide-shell *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* Explain the isolated OAuth return host before users enter a preview account. */
+.auth-screen .auth-preview-notice {
+  width: min(900px, calc(100% - 36px));
+  margin: 14px auto 0;
+  display: grid;
+  gap: 7px;
+  padding: 13px 16px;
+  border: 1px solid #cbded0;
+  border-radius: 10px;
+  background: #f0f7f2;
+  color: #496251;
+  box-shadow: 0 3px 12px rgba(25, 55, 34, .04);
+  font-size: 11px;
+  line-height: 1.55;
+}
+.auth-screen .auth-preview-notice strong { color: #176b4b; font-size: 9px; letter-spacing: .09em; }
+.auth-screen .auth-preview-notice code {
+  overflow-wrap: anywhere;
+  padding: 7px 9px;
+  border: 1px solid #dce9df;
+  border-radius: 6px;
+  background: #fff;
+  color: #23563b;
+  font-size: 10px;
+}
+.auth-screen .auth-preview-notice small { color: #78887d; font-size: 9px; }

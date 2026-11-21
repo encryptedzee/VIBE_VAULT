@@ -396,7 +396,7 @@ function AuthPage({ onBack, onSuccess, pendingPlan, oauthError, initialMode }) {
   }
 
   return <main className="auth-screen">
-    <div className="auth-top"><button className="back-link" onClick={onBack}><ArrowLeft size={15}/> BACK TO BRIEFING</button><Brand/><StatusLine>ENCRYPTED SESSION</StatusLine></div>
+    {IS_FEATURE_PREVIEW_HOST && <div className="auth-preview-notice" role="note"><strong>FEATURE PREVIEW — SIGN-IN ROUTING</strong><span>This preview uses a separate website address. Add this exact callback to Supabase → Authentication → URL Configuration → Redirect URLs to keep GitHub sign-in on this preview:</span><code>{window.location.origin + '/auth/callback'}</code><small>If sign-in returns you to <b>vibevault.vibevault-hq.workers.dev</b>, Supabase sent you to production instead of this preview.</small></div>}<div className="auth-top"><button className="back-link" onClick={onBack}><ArrowLeft size={15}/> BACK TO BRIEFING</button><Brand/><StatusLine>ENCRYPTED SESSION</StatusLine></div>
     <div className="auth-layout">
       <aside className="auth-aside tactical-grid"><span className="eyebrow"><span className="eyebrow-rule"/>VAULT ACCESS</span><h1 className="display auth-title">ENTER<br/>CONTROL ROOM.</h1><p>Your conversations are the source material. Your rules are the operating system. Keep both in one place.</p><div className="auth-aside-meta"><span>VV-SECURE / 01</span><span>PERSONAL AI MEMORY</span></div></aside>
       <section className="auth-form-area">
