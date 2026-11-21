@@ -545,6 +545,11 @@ function Dashboard({ session, initialPlan, onSignOut }) {
   const [taskPrompt, setTaskPrompt] = useState('')
   const [decisions, setDecisions] = useState([])
   const [sessionSummaries, setSessionSummaries] = useState([])
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [inspectorOpen, setInspectorOpen] = useState(true)
+  const [mobileAgentVisible, setMobileAgentVisible] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
   const activeProject = projects.find(p => p.id === activeProjectId) || projects[0] || null
   const isPro = Boolean(profile?.is_pro)
@@ -555,11 +560,39 @@ function Dashboard({ session, initialPlan, onSignOut }) {
     const sameSource = sourceFilter === 'ALL' || c.source_ai?.toUpperCase() === sourceFilter
     return sameProject && sameSource
   }), [conversations, activeProject, sourceFilter])
-  const selectedConversations = conversations.filter(c => selectedIds.includes(c.id))
+  const selectedConversations = conversations.filter(c => c.project_id === activeProject?.id && selectedIds.includes(c.id))
+  const searchResults = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    const entries = [
+      ...projects.map(item => ({ kind: 'project', id: item.id, projectId: item.id, title: item.title, detail: item.description || 'Project workspace' })),
+      ...conversations.map(item => ({ kind: 'conversation', id: item.id, projectId: item.project_id, title: item.title, detail: (item.source_ai || 'AI conversation') + ' · ' + formatDate(item.created_at) })),
+      ...decisions.map(item => ({ kind: 'decision', id: item.id, projectId: item.project_id, title: item.title, detail: 'Decision · ' + (item.status || 'record') })),
+      ...sessionSummaries.map(item => ({ kind: 'summary', id: item.id, projectId: item.project_id, title: item.title, detail: 'Session summary · ' + (item.source_ai || 'AI session') }))
+    ]
+    const filtered = query
+      ? entries.filter(item => (item.title + ' ' + item.detail).toLowerCase().includes(query))
+      : [
+          ...conversations.slice(0, 5).map(item => ({ kind: 'conversation', id: item.id, projectId: item.project_id, title: item.title, detail: (item.source_ai || 'AI conversation') + ' · ' + formatDate(item.created_at) })),
+          ...projects.slice(0, 3).map(item => ({ kind: 'project', id: item.id, projectId: item.id, title: item.title, detail: item.description || 'Project workspace' }))
+        ]
+    return filtered.slice(0, 12)
+  }, [searchQuery, projects, conversations, decisions, sessionSummaries])
 
   useEffect(() => {
     if (initialPlan) setModal({ type: 'upgrade', plan: initialPlan })
   }, [initialPlan])
+
+  useEffect(() => {
+    const handleWorkspaceShortcut = event => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setSearchOpen(true)
+      }
+      if (event.key === 'Escape') setSearchOpen(false)
+    }
+    window.addEventListener('keydown', handleWorkspaceShortcut)
+    return () => window.removeEventListener('keydown', handleWorkspaceShortcut)
+  }, [])
 
   useEffect(() => {
     let mounted = true
@@ -653,6 +686,22 @@ function Dashboard({ session, initialPlan, onSignOut }) {
   }, [toast])
 
   function showToast(message) { setToast(message) }
+
+  function openWorkspaceSearchResult(result) {
+    setActiveProjectId(result.projectId || null)
+    setActiveConversationId(null)
+    setSelectedIds([])
+    if (result.kind === 'conversation') {
+      setActiveConversationId(result.id)
+      setSelectedIds([result.id])
+      setActivePane('conversation')
+    } else if (result.kind === 'decision') setActivePane('decisions')
+    else if (result.kind === 'summary') setActivePane('summaries')
+    else setActivePane('overview')
+    setMobileAgentVisible(false)
+    setSearchOpen(false)
+    setSearchQuery('')
+  }
 
   async function refreshPlanStatus() {
     setRefreshingPlan(true)
@@ -971,52 +1020,75 @@ function Dashboard({ session, initialPlan, onSignOut }) {
   const projectDecisions = activeProject ? decisions.filter(item => item.project_id === activeProject.id) : []
   const projectSummaries = activeProject ? sessionSummaries.filter(item => item.project_id === activeProject.id) : []
   const projectHandoffs = activeProject ? handoffs.filter(item => item.project_id === activeProject.id) : []
-  const navItems = [
-    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-    { id: 'conversations', label: 'Conversations', icon: MessageSquareText },
-    { id: 'knowledge', label: 'Knowledge', icon: BookOpen },
-    { id: 'decisions', label: 'Decisions', icon: CircleDot },
-    { id: 'handoffs', label: 'Agent runs', icon: Workflow }
+  const navGroups = [
+    { label: 'WORKSPACE', items: [
+      { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+      { id: 'projects', label: 'Projects', icon: FolderKanban }
+    ]},
+    { label: 'KNOWLEDGE', items: [
+      { id: 'conversations', label: 'Conversations', icon: MessageSquareText },
+      { id: 'inbox', label: 'Import Inbox', icon: Inbox },
+      { id: 'knowledge', label: 'Knowledge', icon: BookOpen },
+      { id: 'decisions', label: 'Decisions', icon: CircleDot },
+      { id: 'summaries', label: 'Session Summaries', icon: History }
+    ]},
+    { label: 'AI OPERATIONS', items: [
+      { id: 'handoffs', label: 'Agent Handoffs', icon: Workflow },
+      { id: 'preferences', label: 'AI Preferences', icon: Layers3 },
+      { id: 'connections', label: 'Connections', icon: Plug }
+    ]},
+    { label: 'ACCOUNT', items: [
+      { id: 'subscription', label: 'Subscription', icon: Zap },
+      { id: 'settings', label: 'Settings', icon: Settings2 }
+    ]}
   ]
-  const setPane = pane => { setActivePane(pane); if (pane !== 'conversation') setActiveConversationId(null) }
+  const navItems = navGroups.flatMap(group => group.items)
+  const navCount = item => item.id === 'conversations' ? projectConversations.length : item.id === 'decisions' ? projectDecisions.length : item.id === 'handoffs' ? projectHandoffs.length : item.id === 'inbox' ? captureInbox.length : item.id === 'connections' ? integrationTokens.filter(token => !token.revoked_at).length : ''
+  const setPane = pane => { setActivePane(pane); if (pane !== 'conversation') setActiveConversationId(null); setMobileAgentVisible(false) }
   return <main className="ide-shell">
     <header className="ide-topbar">
       <div className="ide-topbar-left">
+        <button className="ide-top-icon ide-layout-control" title={sidebarCollapsed ? 'Expand navigation' : 'Collapse navigation'} aria-label={sidebarCollapsed ? 'Expand navigation' : 'Collapse navigation'} onClick={() => setSidebarCollapsed(value => !value)}><Menu size={17}/></button>
         <Brand compact/>
         <span className="ide-top-divider"/>
         <div className="ide-workspace-name"><small>WORKSPACE</small><strong>{activeProject?.title || 'No project selected'}</strong></div>
         <span className="ide-top-status"><span className="status-pulse"/> {busy ? 'SYNCING' : 'SAVED'}</span>
       </div>
       <div className="ide-topbar-right">
+        <button className="ide-global-search-trigger" onClick={() => setSearchOpen(true)} aria-label="Search VibeVault"><Search size={15}/><span>Search projects, conversations, decisions…</span><kbd>Ctrl K</kbd></button>
         <label className="ide-project-picker"><FolderKanban size={14}/><select aria-label="Switch project" value={activeProject?.id || ''} onChange={event => { setActiveProjectId(event.target.value); setActiveConversationId(null); setSelectedIds([]); setActivePane('overview') }}><option value="">Select project</option>{projects.map(project => <option value={project.id} key={project.id}>{project.title}</option>)}</select><ChevronDown size={13}/></label>
         <span className="ide-plan-pill">{currentPlan}</span>
-        <button className="ide-top-icon" title="AI workspace settings" onClick={() => setModal({ type: 'ai' })}><Layers3 size={16}/></button>
-        <button className="ide-top-icon" title="Connections" onClick={() => { setGeneratedToken(''); setModal({ type: 'integrations' }) }}><Plug size={16}/></button>
-        <button className="ide-user-menu" title="Sign out" onClick={onSignOut}>{(profile?.display_name || user.email || 'V').slice(0,1).toUpperCase()}</button>
+        <button className="ide-top-icon ide-inbox-trigger" title="Import inbox" aria-label="Import inbox" onClick={() => setPane('inbox')}><Inbox size={16}/>{captureInbox.length > 0 && <span>{captureInbox.length}</span>}</button>
+        <button className="ide-top-icon" title="AI workspace preferences" onClick={() => setPane('preferences')}><Layers3 size={16}/></button>
+        <button className="ide-top-icon" title={inspectorOpen ? 'Hide context inspector' : 'Show context inspector'} aria-label={inspectorOpen ? 'Hide context inspector' : 'Show context inspector'} onClick={() => setInspectorOpen(value => !value)}><PanelsTopLeft size={16}/></button>
+        <button className="ide-user-menu" title="Account settings" onClick={() => setPane('settings')}>{(profile?.display_name || user.email || 'V').slice(0,1).toUpperCase()}</button>
       </div>
     </header>
 
-    <div className="ide-workbench">
+    <div className={'ide-workbench ' + (sidebarCollapsed ? 'sidebar-collapsed ' : '') + (!inspectorOpen ? 'inspector-collapsed ' : '') + (mobileAgentVisible ? 'mobile-agent-visible' : '')}>
       <nav className="ide-activitybar" aria-label="Workspace tools">
-        <button className="active" title="Explorer"><PanelsTopLeft size={19}/></button>
-        <button title="Agent runs" onClick={() => setPane('handoffs')}><Workflow size={19}/></button>
-        <button title="Conversation vault" onClick={() => setPane('conversations')}><Archive size={19}/></button>
-        <button title="Knowledge base" onClick={() => setPane('knowledge')}><BookOpen size={19}/></button>
+        <button className={activePane === 'overview' || activePane === 'projects' ? 'active' : ''} title="Workspace" onClick={() => setPane('overview')}><PanelsTopLeft size={19}/></button>
+        <button className={activePane === 'handoffs' ? 'active' : ''} title="Agent handoffs" onClick={() => setPane('handoffs')}><Workflow size={19}/></button>
+        <button className={activePane === 'conversations' || activePane === 'conversation' ? 'active' : ''} title="Conversation vault" onClick={() => setPane('conversations')}><Archive size={19}/></button>
+        <button className={activePane === 'knowledge' || activePane === 'decisions' || activePane === 'summaries' ? 'active' : ''} title="Knowledge" onClick={() => setPane('knowledge')}><BookOpen size={19}/></button>
         <span className="ide-activity-spacer"/>
-        <button title="AI connections" onClick={() => setModal({ type: 'integrations' })}><Plug size={18}/></button>
-        <button title="Preferences" onClick={() => setModal({ type: 'style' })}><Settings2 size={18}/></button>
+        <button title="AI connections" onClick={() => setPane('connections')}><Plug size={18}/></button>
+        <button title="Settings" onClick={() => setPane('settings')}><Settings2 size={18}/></button>
       </nav>
 
       <aside className="ide-explorer">
         <div className="ide-explorer-title"><span>EXPLORER</span><button title="Create project" onClick={requestCreateProject}><Plus size={15}/></button></div>
         <div className="ide-explorer-project-label"><span><ChevronDown size={13}/> PROJECTS</span><button title="New project" onClick={requestCreateProject}><Plus size={14}/></button></div>
+        <div className="ide-sidebar-search"><Search size={13}/><input aria-label="Filter projects" value={projectSearch} onChange={event => setProjectSearch(event.target.value)} placeholder="Filter projects"/></div>
         <div className="ide-project-tree">
           {filteredProjects.map(project => <button key={project.id} className={'ide-project-node ' + (activeProject?.id === project.id ? 'selected' : '')} onClick={() => { setActiveProjectId(project.id); setActiveConversationId(null); setSelectedIds([]); setActivePane('overview') }}><FolderKanban size={15}/><span>{project.title}</span><small>{conversations.filter(item => item.project_id === project.id).length}</small></button>)}
           {!projects.length && <div className="ide-sidebar-empty">Your projects will appear here.</div>}
         </div>
-        <div className="ide-explorer-section-head"><span><ChevronDown size={13}/> WORKSPACE</span></div>
         <div className="ide-sidebar-nav">
-          {navItems.map(item => <button key={item.id} className={'ide-nav-item ' + (activePane === item.id ? 'active' : '')} onClick={() => setPane(item.id)}><item.icon size={15}/><span>{item.label}</span><small>{item.id === 'conversations' ? projectConversations.length : item.id === 'decisions' ? projectDecisions.length : item.id === 'handoffs' ? projectHandoffs.length : ''}</small></button>)}
+          {navGroups.map(group => <section className="ide-nav-group" key={group.label}>
+            <div className="ide-nav-group-label">{group.label}</div>
+            {group.items.map(item => <button key={item.id} className={'ide-nav-item ' + (activePane === item.id ? 'active' : '')} onClick={() => setPane(item.id)}><item.icon size={15}/><span>{item.label}</span>{navCount(item) !== '' && Number(navCount(item)) > 0 && <small>{navCount(item)}</small>}</button>)}
+          </section>)}
         </div>
         <div className="ide-explorer-section-head conversation-tree-head"><span><ChevronDown size={13}/> CONVERSATION FILES</span><button title="Import conversation" onClick={requestSaveConversation}><Plus size={14}/></button></div>
         <div className="ide-conversation-tree">
@@ -1041,7 +1113,7 @@ function Dashboard({ session, initialPlan, onSignOut }) {
         <div className="ide-breadcrumb"><span>VIBEVAULT</span><ChevronRight size={12}/><span>{activeProject?.title || 'WORKSPACE'}</span><ChevronRight size={12}/><strong>{activePane === 'conversation' ? activeConversation?.title || 'Conversation' : navItems.find(item => item.id === activePane)?.label || 'Overview'}</strong><span className="ide-breadcrumb-spacer"/><span className="ide-branch"><GitBranch size={12}/> PROJECT CONTEXT</span></div>
         <div className="ide-editor-scroll">
           {busy && <div className="ide-loading"><span className="ide-loading-bar"/><p>SYNCING PROJECT FILES…</p></div>}
-          {!activeProject && !busy && <div className="ide-empty-workspace"><div className="ide-empty-icon"><FolderKanban size={27}/></div><span className="ide-kicker">VIBEVAULT WORKSPACE</span><h1>Create your first project.</h1><p>Projects keep conversations, decisions and handoffs together. Import your existing AI work and continue from one place.</p><Button onClick={requestCreateProject}><Plus size={15}/> CREATE PROJECT</Button></div>}
+          {!activeProject && !busy && !['projects','inbox','preferences','connections','subscription','settings'].includes(activePane) && <div className="ide-empty-workspace"><div className="ide-empty-icon"><FolderKanban size={27}/></div><span className="ide-kicker">VIBEVAULT WORKSPACE</span><h1>Create your first project.</h1><p>Projects keep conversations, decisions and handoffs together. Import your existing AI work and continue from one place.</p><Button onClick={requestCreateProject}><Plus size={15}/> CREATE PROJECT</Button></div>}
 
           {activeProject && !busy && activePane === 'overview' && <div className="ide-page ide-overview-page">
             <div className="ide-page-heading"><div><span className="ide-kicker">PROJECT WORKSPACE</span><h1>{activeProject.title}</h1><p>{activeProject.description || 'A persistent home for the context, decisions and work behind this project.'}</p></div><div className="ide-heading-actions"><Button variant="ghost" onClick={() => setModal({ type: 'project-edit' })}><Settings2 size={14}/> PROJECT SETTINGS</Button><Button onClick={requestSaveConversation}><Upload size={14}/> IMPORT CONTEXT</Button></div></div>
@@ -1067,7 +1139,21 @@ function Dashboard({ session, initialPlan, onSignOut }) {
             <div className="ide-bottom-note"><ShieldCheck size={15}/><span>Original conversation records are preserved independently from generated specifications and summaries.</span></div>
           </div>}
 
-          {activeProject && !busy && activePane === 'conversation' && activeConversation && <div className="ide-conversation-page">
+          {activePane === 'projects' && !busy && <div className="ide-page">
+            <div className="ide-page-heading"><div><span className="ide-kicker">YOUR WORKSPACES</span><h1>Projects</h1><p>Keep conversations, decisions, knowledge and handoffs connected to the work they belong to.</p></div><Button onClick={requestCreateProject}><Plus size={14}/> NEW PROJECT</Button></div>
+            {projects.length ? <div className="ide-project-grid">{projects.map(project => { const count = conversations.filter(item => item.project_id === project.id).length; const decisionCount = decisions.filter(item => item.project_id === project.id).length; const runCount = handoffs.filter(item => item.project_id === project.id).length; return <article className={'ide-project-card ' + (activeProject?.id === project.id ? 'selected' : '')} key={project.id}>
+              <button className="ide-project-card-main" onClick={() => { setActiveProjectId(project.id); setSelectedIds([]); setActiveConversationId(null); setActivePane('overview') }}><span className="ide-project-card-icon"><FolderKanban size={18}/></span><span className="ide-project-card-copy"><strong>{project.title}</strong><small>{project.description || 'No project description yet.'}</small></span><span className="ide-project-card-arrow"><ChevronRight size={16}/></span></button>
+              <div className="ide-project-card-meta"><span>{count} conversations</span><span>{decisionCount} decisions</span><span>{runCount} handoffs</span><button onClick={() => { setActiveProjectId(project.id); setModal({ type: 'project-edit' }) }}><Settings2 size={13}/> Settings</button></div>
+            </article>})}</div> : <div className="ide-panel-empty"><FolderKanban size={24}/><strong>No projects yet</strong><span>Create a project to give your conversations and decisions a permanent home.</span><Button onClick={requestCreateProject}><Plus size={14}/> CREATE PROJECT</Button></div>}
+          </div>}
+
+          {activePane === 'inbox' && !busy && <div className="ide-page">
+            <div className="ide-page-heading"><div><span className="ide-kicker">BROWSER CAPTURE REVIEW</span><h1>Import Inbox</h1><p>Review captured conversations before they are added to a permanent project vault.</p></div><Button onClick={() => setModal({ type: 'inbox' })}><Inbox size={14}/> REVIEW INBOX</Button></div>
+            <div className="ide-inbox-summary"><span className="ide-inbox-summary-icon"><Inbox size={18}/></span><span><strong>{captureInbox.length} pending capture{captureInbox.length === 1 ? '' : 's'}</strong><small>These records remain in the review inbox until you import or discard them.</small></span></div>
+            {captureInbox.length ? <div className="ide-resource-list">{captureInbox.map(capture => <article className="ide-inbox-row" key={capture.id}><div><span className="ide-kicker">{capture.source_ai} · {formatDate(capture.created_at)}</span><strong>{capture.title}</strong><p>{(capture.raw_content || '').slice(0,240).replace(/\s+/g,' ')}{(capture.raw_content || '').length > 240 ? '…' : ''}</p></div><Button variant="ghost" onClick={() => setModal({ type: 'inbox' })}>REVIEW <ChevronRight size={14}/></Button></article>)}</div> : <div className="ide-panel-empty"><CheckCircle2 size={23}/><strong>Your inbox is clear</strong><span>Use Browser Capture on a supported AI conversation to send it here for review.</span><Button variant="ghost" onClick={() => setPane('connections')}><Plug size={14}/> CONNECTION SETUP</Button></div>}
+          </div>}
+
+          {activePane === 'conversation' && activeConversation && <div className="ide-conversation-page">
             <div className="ide-document-heading"><div><span className="ide-kicker">CONVERSATION FILE · {activeConversation.source_ai.toUpperCase()}</span><h1>{activeConversation.title}</h1><p>Original discussion preserved in VibeVault. Select text and code as reference for the next agent.</p></div><div className="ide-heading-actions"><Button variant="ghost" onClick={() => navigator.clipboard?.writeText(activeConversation.raw_content || '')}><Clipboard size={14}/> COPY ORIGINAL</Button><Button onClick={() => setSelectedIds(current => current.includes(activeConversation.id) ? current : [...current, activeConversation.id])}><Plus size={14}/> ADD TO CONTEXT</Button></div></div>
             <ConversationEditor conversation={activeConversation} mode={transcriptMode} isPro={isPro} onModeChange={setTranscriptMode} cleaning={cleaningId === activeConversation.id} onClean={() => generateCleanSpec(activeConversation)}/>
           </div>}
@@ -1094,8 +1180,41 @@ function Dashboard({ session, initialPlan, onSignOut }) {
             {!projectDecisions.length && <div className="ide-panel-empty"><CircleDot size={22}/><strong>No decisions have been saved</strong><span>MCP-connected AIs can save project decisions and unresolved questions when you ask them to.</span></div>}
           </div>}
 
+          {activeProject && !busy && activePane === 'summaries' && <div className="ide-page">
+            <div className="ide-page-heading"><div><span className="ide-kicker">PERSISTENT SESSION MEMORY</span><h1>Session Summaries</h1><p>Important outcomes recorded by you or an MCP-connected AI, kept alongside the project that owns them.</p></div><span className="ide-record-count">{projectSummaries.length} RECORDS</span></div>
+            {projectSummaries.map(summary => <article className="ide-summary-card" key={summary.id}><header><strong>{summary.title}</strong><small>{summary.source_ai || 'AI session'} · {formatDate(summary.created_at)}</small></header><RichDocumentBody text={summary.summary}/></article>)}
+            {!projectSummaries.length && <div className="ide-panel-empty"><History size={22}/><strong>No session summaries yet</strong><span>Ask a connected AI to save a concise record of a completed work session through MCP.</span></div>}
+          </div>}
+
+          {activePane === 'preferences' && !busy && <div className="ide-page">
+            <div className="ide-page-heading"><div><span className="ide-kicker">PERSONAL AI CONFIGURATION</span><h1>AI Preferences</h1><p>Your default destination, provider roles and working style are included when VibeVault prepares an agent handoff.</p></div><Button onClick={() => setModal({ type: 'ai' })}><Settings2 size={14}/> MANAGE PREFERENCES</Button></div>
+            <section className="ide-preference-summary"><div><span className="ide-kicker">DEFAULT DESTINATION</span><strong>{providerPreferences.last_target || 'Not set'}</strong><small>{providerPreferences.providers?.[providerPreferences.last_target]?.role || 'Choose a provider and define its purpose.'}</small></div><div><span className="ide-kicker">WORKING STYLE</span><strong>{providerPreferences.profile?.collaboration || 'Not configured'}</strong><small>{providerPreferences.profile?.detail || 'Response detail not configured'}</small></div></section>
+            <div className="ide-panel-heading"><div><span className="ide-kicker">SAVED PROVIDERS</span><h2>AI destinations</h2></div><span>{AI_PROVIDERS.filter(provider => providerPreferences.providers?.[provider.name]?.enabled).length} ENABLED</span></div>
+            <div className="ide-provider-grid">{AI_PROVIDERS.filter(provider => providerPreferences.providers?.[provider.name]?.enabled).map(provider => <article className="ide-provider-card" key={provider.name}><AIProviderLogo provider={provider} className="ide-provider-card-logo"/><span><strong>{provider.name}</strong><small>{providerPreferences.providers?.[provider.name]?.role || provider.role}</small></span>{provider.name === providerPreferences.last_target && <em>DEFAULT</em>}</article>)}</div>
+            {!AI_PROVIDERS.some(provider => providerPreferences.providers?.[provider.name]?.enabled) && <div className="ide-panel-empty"><Layers3 size={22}/><strong>No AI destinations configured</strong><span>Complete the AI preferences setup to define the tools you use and their roles.</span><Button onClick={() => setModal({ type: 'ai' })}>CONFIGURE AI PREFERENCES</Button></div>}
+          </div>}
+
+          {activePane === 'connections' && !busy && <div className="ide-page">
+            <div className="ide-page-heading"><div><span className="ide-kicker">EXTENSIONS & EXTERNAL CLIENTS</span><h1>Connections</h1><p>Manage the revocable tokens that connect the browser capture extension and compatible MCP clients to your vault.</p></div><Button onClick={() => { setGeneratedToken(''); setModal({ type: 'integrations' }) }}><Plug size={14}/> MANAGE CONNECTIONS</Button></div>
+            <div className="ide-connection-grid"><article className="ide-connection-card"><span className="ide-connection-icon"><Archive size={18}/></span><strong>Browser Capture</strong><p>Capture the conversation you are viewing in ChatGPT, Claude or Gemini. New captures wait in your Import Inbox.</p><small>{integrationTokens.filter(token => token.scope === 'capture' && !token.revoked_at).length} active token(s)</small></article><article className="ide-connection-card"><span className="ide-connection-icon"><Workflow size={18}/></span><strong>MCP Server</strong><p>Let compatible AI clients search project context and save user-approved decisions or session summaries.</p><small>{integrationTokens.filter(token => token.scope === 'mcp' && !token.revoked_at).length} active token(s)</small></article></div>
+            <div className="ide-bottom-note"><ShieldCheck size={15}/><span>Tokens are stored as hashes. A newly created token is only displayed once; revoke and replace it if it is lost.</span></div>
+          </div>}
+
+          {activePane === 'subscription' && !busy && <div className="ide-page">
+            <div className="ide-page-heading"><div><span className="ide-kicker">ACCOUNT ENTITLEMENTS</span><h1>Subscription</h1><p>Review the entitlement currently recorded on your VibeVault profile.</p></div><Button variant="ghost" onClick={refreshPlanStatus} disabled={refreshingPlan}>{refreshingPlan ? 'REFRESHING…' : 'REFRESH PLAN STATUS'}</Button></div>
+            <section className="ide-subscription-card"><div><span className="ide-kicker">CURRENT PLAN</span><strong>{isPro ? 'Pro access' : 'Starter Vault'}</strong><small>{isPro ? 'Your profile currently has Pro entitlement.' : 'Starter includes one project, three raw conversations and three built-in role skills.'}</small></div><span className="ide-plan-pill">{currentPlan}</span></section>
+            <div className="ide-usage-grid"><div><small>PROJECTS</small><strong>{projects.length}{isPro ? '' : ' / 1'}</strong></div><div><small>CONVERSATIONS</small><strong>{conversations.length}{isPro ? '' : ' / 3'}</strong></div><div><small>CUSTOM SKILLS</small><strong>{skills.filter(skill => !skill.is_default).length}</strong></div></div>
+            {!isPro && <div className="ide-bottom-note"><Zap size={15}/><span>Upgrade to Pro for unlimited projects and conversations, custom role skills and AI Smart Spec Cleaner.</span><Button onClick={() => setModal({ type: 'upgrade', plan: 'pro' })}>VIEW PRO</Button></div>}
+          </div>}
+
+          {activePane === 'settings' && !busy && <div className="ide-page">
+            <div className="ide-page-heading"><div><span className="ide-kicker">PERSONAL ACCOUNT</span><h1>Settings</h1><p>Manage your saved working preferences and review the account currently signed in.</p></div></div>
+            <section className="ide-settings-card"><span className="ide-settings-avatar">{(profile?.display_name || user.email || 'V').slice(0,1).toUpperCase()}</span><span><strong>{profile?.display_name || user.user_metadata?.display_name || 'Vault owner'}</strong><small>{user.email}</small><small>Account ID: {user.id}</small></span><Button variant="ghost" onClick={onSignOut}><LogOut size={14}/> SIGN OUT</Button></section>
+            <section className="ide-settings-card"><span className="ide-settings-avatar"><Settings2 size={18}/></span><span><strong>Global working style</strong><small>{profile?.global_style?.trim() || 'No additional global style has been saved.'}</small></span><Button onClick={() => setModal({ type: 'style' })}>EDIT STYLE</Button></section>
+          </div>}
+
           {activeProject && !busy && activePane === 'handoffs' && <div className="ide-page">
-            <div className="ide-page-heading"><div><span className="ide-kicker">AGENT ACTIVITY</span><h1>Handoff history</h1><p>Track which AI received project context and which task role was assigned.</p></div><span className="ide-record-count">{projectHandoffs.length} RUNS</span></div>
+            <div className="ide-page-heading"><div><span className="ide-kicker">AGENT ACTIVITY</span><h1>Agent Handoffs</h1><p>Prepare context for the next AI, preserve the exact source threads and track whether the receiving agent confirmed the transfer.</p></div><Button onClick={() => setModal({ type: 'handoff' })} disabled={!activeProject || !activeSkill}><Workflow size={14}/> PREPARE HANDOFF</Button></div>
             {projectHandoffs.map(handoff => <article className="ide-handoff-card" key={handoff.id}><div className="ide-handoff-symbol"><Bot size={18}/></div><div className="ide-handoff-copy"><strong>{handoff.target_ai}</strong><span>{handoff.role_name} · {formatDate(handoff.created_at)}</span><small>{handoff.confirmed ? 'Receiving AI confirmation marked' : 'Context prepared · confirmation not yet marked'}</small></div>{handoff.confirmed ? <span className="ide-handoff-confirmed"><CheckCircle2 size={13}/> CONFIRMED</span> : <Button variant="ghost" onClick={() => markHandoffConfirmed(handoff.id)}>MARK CONFIRMED</Button>}</article>)}
             {!projectHandoffs.length && <div className="ide-panel-empty"><Workflow size={22}/><strong>No handoffs yet</strong><span>Prepare a task in the Agent panel to start your handoff history.</span></div>}
           </div>}
@@ -1104,9 +1223,10 @@ function Dashboard({ session, initialPlan, onSignOut }) {
       </section>
 
       <aside className="ide-agent-panel">
-        <div className="ide-agent-header"><div><span className="ide-kicker">VIBEVAULT AGENT</span><strong>Agent workspace</strong></div><span className="ide-agent-ready"><span/> READY</span></div>
+        <div className="ide-agent-header"><div><span className="ide-kicker">LIVE PROJECT CONTEXT</span><strong>Context inspector</strong></div><button className="ide-inspector-close" title="Collapse inspector" onClick={() => setInspectorOpen(false)}>×</button></div>
         <div className="ide-agent-scroll">
-          <div className="ide-agent-section-title"><span>DESTINATION AI</span><button onClick={() => setModal({ type: 'ai' })}>MANAGE</button></div>
+          <section className="ide-inspector-context"><span className="ide-kicker">{activeConversation ? 'SELECTED CONVERSATION' : activePane === 'inbox' ? 'IMPORT ACTIVITY' : activePane === 'handoffs' ? 'AGENT ACTIVITY' : 'ACTIVE PROJECT'}</span><strong>{activeConversation?.title || activeProject?.title || (activePane === 'subscription' ? 'Account plan' : 'Workspace overview')}</strong><p>{activeConversation ? (activeConversation.source_ai || 'AI source') + ' · ' + formatDate(activeConversation.created_at) : activeProject?.description || 'Project context, saved rules and transfer preferences appear here.'}</p><div className="ide-inspector-stats"><span><strong>{projectConversations.length}</strong><small>Threads</small></span><span><strong>{projectDecisions.length}</strong><small>Decisions</small></span><span><strong>{projectHandoffs.length}</strong><small>Handoffs</small></span></div></section>
+          <div className="ide-agent-section-title"><span>DESTINATION AI</span><button onClick={() => setPane('preferences')}>MANAGE</button></div>
           <button className="ide-agent-provider" onClick={() => setModal({ type: 'ai' })}>
             <AIProviderLogo provider={selectedProvider} className="ide-agent-logo"/>
             <span><strong>{targetAi}</strong><small>{providerPreferences.providers?.[targetAi]?.role || selectedProvider.role}</small></span>
@@ -1128,13 +1248,24 @@ function Dashboard({ session, initialPlan, onSignOut }) {
         </div>
         <div className="ide-agent-footer">
           <div className="ide-agent-footer-meta"><span><span className="status-pulse"/> CONTEXT PREPARED</span><small>{selectedIds.filter(id => projectConversations.some(conversation => conversation.id === id)).length} source records selected</small></div>
-          <Button block onClick={() => saveHandoff(true)} disabled={!activeProject || !activeSkill}><Clipboard size={15}/> COPY HANDOFF CONTEXT</Button>
+          <Button block onClick={() => setModal({ type: 'handoff' })} disabled={!activeProject || !activeSkill}><Workflow size={15}/> REVIEW & GENERATE AGENT.MD</Button>
           <Button block variant="ghost" onClick={() => openInAI(targetAi)} disabled={!activeProject || !activeSkill}>OPEN {targetAi.toUpperCase()} <ArrowUpRight size={14}/></Button>
+          <button className="ide-advanced-link" onClick={downloadHandoff} disabled={!activeProject || !activeSkill}><Download size={13}/> DOWNLOAD AGENT.MD</button>
           <button className="ide-advanced-link" onClick={() => setShowTechnicalHandoff(value => !value)}>{showTechnicalHandoff ? 'HIDE TECHNICAL HANDOFF FILE' : 'ADVANCED · VIEW TECHNICAL HANDOFF FILE'}</button>
           {showTechnicalHandoff && <pre className="ide-technical-preview">{makeAgentMd()}</pre>}
         </div>
       </aside>
     </div>
+
+    <nav className="ide-mobile-dock" aria-label="Mobile workspace navigation">
+      <button className={!mobileAgentVisible && activePane === 'overview' ? 'active' : ''} onClick={() => setPane('overview')}><LayoutDashboard size={16}/><span>Overview</span></button>
+      <button className={!mobileAgentVisible && activePane === 'conversations' ? 'active' : ''} onClick={() => setPane('conversations')}><MessageSquareText size={16}/><span>Vault</span></button>
+      <button className={!mobileAgentVisible && activePane === 'inbox' ? 'active' : ''} onClick={() => setPane('inbox')}><Inbox size={16}/><span>Inbox</span>{captureInbox.length > 0 && <em>{captureInbox.length}</em>}</button>
+      <button className={mobileAgentVisible ? 'active' : ''} onClick={() => setMobileAgentVisible(true)}><Bot size={16}/><span>Agent</span></button>
+    </nav>
+
+    {modal?.type === 'handoff' && <HandoffModal projects={projects} activeProjectId={activeProject?.id || ''} conversations={conversations} selectedIds={selectedIds} bundleModes={bundleModes} skills={skills} activeSkillId={activeSkillId} targetAi={targetAi} taskPrompt={taskPrompt} providerPreferences={providerPreferences} isPro={isPro} preview={makeAgentMd()} onProjectChange={projectId => { setActiveProjectId(projectId); setSelectedIds([]); setActiveConversationId(null) }} onToggleConversation={toggleConversation} onModeChange={(id, mode) => setBundleModes(current => ({...current,[id]:mode}))} onSkillChange={setActiveSkillId} onTargetChange={setTargetAi} onTaskChange={setTaskPrompt} onManagePreferences={() => setModal({ type: 'ai' })} onClose={() => setModal(null)} onCopy={() => saveHandoff(true)} onDownload={downloadHandoff} onOpen={openInAI}/>}
+    {searchOpen && <div className="ide-search-backdrop" onMouseDown={event => event.target === event.currentTarget && setSearchOpen(false)}><section className="ide-search-dialog" role="dialog" aria-modal="true" aria-label="Search VibeVault"><div className="ide-search-input-wrap"><Search size={18}/><input autoFocus value={searchQuery} onChange={event => setSearchQuery(event.target.value)} onKeyDown={event => event.key === 'Escape' && setSearchOpen(false)} placeholder="Search projects, conversations, decisions and summaries…"/><kbd>ESC</kbd></div><div className="ide-search-results">{searchResults.map(result => <button key={result.kind + result.id} onClick={() => openWorkspaceSearchResult(result)}><span className="ide-search-result-icon">{result.kind === 'project' ? <FolderKanban size={16}/> : result.kind === 'conversation' ? <MessageSquareText size={16}/> : result.kind === 'decision' ? <CircleDot size={16}/> : <History size={16}/>}</span><span><strong>{result.title}</strong><small>{result.detail}</small></span><em>{result.kind}</em></button>)}{!searchResults.length && <div className="ide-search-empty">No matching records. Try a project or conversation title.</div>}</div><div className="ide-search-footer"><span>Searches your saved projects and project records</span><span>ESC to close</span></div></section></div>}
 
     {modal?.type === 'project' && <ProjectModal onClose={() => setModal(null)} onSave={createProject}/>}
     {modal?.type === 'project-edit' && <ProjectModal initialProject={activeProject} onClose={() => setModal(null)} onSave={updateProject}/>}
@@ -1358,6 +1489,56 @@ function ExportModal({ projects, activeProjectId, providerPreferences, onClose, 
       <div className="transfer-export-note"><ShieldCheck size={15}/> The selected agent is recorded in export metadata only. Exporting does not send the bundle to that provider.</div>
       <div className="modal-actions"><Button variant="ghost" type="button" onClick={onClose}>Cancel</Button><Button disabled={busy || !projects.length}>{busy ? 'Preparing export…' : 'Export project bundle'}</Button></div>
     </form>
+  </Modal>
+}
+
+
+function HandoffModal({ projects, activeProjectId, conversations, selectedIds, bundleModes, skills, activeSkillId, targetAi, taskPrompt, providerPreferences, isPro, preview, onProjectChange, onToggleConversation, onModeChange, onSkillChange, onTargetChange, onTaskChange, onManagePreferences, onClose, onCopy, onDownload, onOpen }) {
+  const [step, setStep] = useState(0)
+  const providers = AI_PROVIDERS.filter(provider => providerPreferences.providers?.[provider.name]?.enabled)
+  const projectConversations = conversations.filter(conversation => conversation.project_id === activeProjectId)
+  const selectedCount = projectConversations.filter(conversation => selectedIds.includes(conversation.id)).length
+  const activeSkill = skills.find(skill => skill.id === activeSkillId) || skills[0]
+  const labels = ['Project & role', 'Source context', 'Receiving AI', 'Review handoff']
+  const next = () => {
+    if (step === 0 && (!activeProjectId || !activeSkill)) return
+    if (step === 2 && !providers.some(provider => provider.name === targetAi)) return
+    setStep(current => Math.min(3, current + 1))
+  }
+  return <Modal title="Prepare an AGENT.md handoff" eyebrow="GUIDED CONTEXT TRANSFER" onClose={onClose} wide>
+    <div className="handoff-wizard">
+      <div className="handoff-progress"><div className="handoff-progress-copy"><span>STEP {step + 1} OF 4</span><strong>{labels[step]}</strong></div><div className="handoff-progress-track"><span style={{width: ((step + 1) * 25) + '%'}}/></div></div>
+      {step === 0 && <div className="handoff-step">
+        <span className="ide-kicker">01 / DEFINE THE WORKSPACE</span><h3>Choose the project and task role.</h3><p>The handoff always includes project description, project rules, global style and your saved working preferences.</p>
+        <label className="field-label">PROJECT<select className="field-input" value={activeProjectId} onChange={event => onProjectChange(event.target.value)} required><option value="">Choose a project</option>{projects.map(project => <option key={project.id} value={project.id}>{project.title}</option>)}</select></label>
+        <label className="field-label">ASSIGNED AGENT ROLE<select className="field-input" value={activeSkill?.id || ''} onChange={event => onSkillChange(event.target.value)} required>{skills.map(skill => <option key={skill.id} value={skill.id}>{skill.role_name}</option>)}</select></label>
+        {activeSkill && <div className="handoff-role-note"><strong>{activeSkill.role_name}</strong><span>{activeSkill.instructions}</span></div>}
+      </div>}
+      {step === 1 && <div className="handoff-step">
+        <span className="ide-kicker">02 / SELECT SOURCE MATERIAL</span><h3>Choose the conversations to carry forward.</h3><p>Original threads are never changed. Choose RAW THREAD or an existing CLEANED SPEC for each selected conversation.</p>
+        <div className="handoff-source-list">{projectConversations.map(conversation => <div className="handoff-source-row" key={conversation.id}>
+          <label><input type="checkbox" checked={selectedIds.includes(conversation.id)} onChange={() => onToggleConversation(conversation.id)}/><span><strong>{conversation.title}</strong><small>{conversation.source_ai} · {formatDate(conversation.created_at)}</small></span></label>
+          <select aria-label={'Context mode for ' + conversation.title} value={bundleModes[conversation.id] || 'raw'} onChange={event => onModeChange(conversation.id,event.target.value)} disabled={!selectedIds.includes(conversation.id)}><option value="raw">RAW THREAD</option><option value="clean" disabled={!isPro || !conversation.cleaned_spec}>CLEANED SPEC{!conversation.cleaned_spec ? ' · NOT GENERATED' : !isPro ? ' · PRO' : ''}</option></select>
+        </div>)}{!projectConversations.length && <div className="ide-panel-empty compact"><MessageSquareText size={18}/><strong>No conversations in this project</strong><span>You can still create a handoff using the project rules and your task instructions.</span></div>}</div>
+        <div className="handoff-selection-note"><ShieldCheck size={15}/>{selectedCount} conversation{selectedCount === 1 ? '' : 's'} selected. Unselected threads are not included.</div>
+      </div>}
+      {step === 2 && <div className="handoff-step">
+        <span className="ide-kicker">03 / CHOOSE THE RECEIVING AI</span><h3>Where should this context continue?</h3><p>Choose one of the providers enabled in your saved AI preferences.</p>
+        {providers.length ? <><div className="handoff-provider-grid">{providers.map(provider => <button type="button" key={provider.name} className={'handoff-provider-option ' + (targetAi === provider.name ? 'selected' : '')} onClick={() => onTargetChange(provider.name)}><AIProviderLogo provider={provider} className="handoff-provider-logo"/><span><strong>{provider.name}</strong><small>{providerPreferences.providers?.[provider.name]?.role || provider.role}</small></span>{targetAi === provider.name && <CheckCircle2 size={16}/>}</button>)}</div><div className="handoff-preference-note"><strong>Saved working preferences</strong><span>{providerPreferences.profile?.collaboration || 'balanced'} collaboration · {providerPreferences.profile?.detail || 'clear'} response detail</span><small>Provider purpose: {providerPreferences.providers?.[targetAi]?.role || 'No additional role saved.'}</small></div></> : <div className="ide-panel-empty"><Layers3 size={20}/><strong>No saved AI providers</strong><span>Configure at least one receiving AI before generating this handoff.</span><Button variant="ghost" onClick={onManagePreferences}>MANAGE AI PREFERENCES</Button></div>}
+        <label className="field-label">WHAT SHOULD THE RECEIVING AI DO?<textarea className="field-input field-textarea" value={taskPrompt} onChange={event => onTaskChange(event.target.value)} placeholder="Describe the next task, expected outcome and any boundaries."/></label>
+      </div>}
+      {step === 3 && <div className="handoff-step handoff-preview-step">
+        <span className="ide-kicker">04 / REVIEW BEFORE TRANSFER</span><h3>Review the generated context.</h3><p>Check the selected project, role, saved preferences, task and source material before copying or launching the receiving AI.</p>
+        <div className="handoff-preview-meta"><span><strong>{projects.find(project => project.id === activeProjectId)?.title || 'No project'}</strong><small>Project</small></span><span><strong>{activeSkill?.role_name || 'No role'}</strong><small>Assigned role</small></span><span><strong>{targetAi}</strong><small>Destination AI</small></span><span><strong>{selectedCount}</strong><small>Source threads</small></span></div>
+        <pre className="handoff-preview-code">{preview}</pre>
+      </div>}
+      <div className="modal-actions handoff-actions">
+        {step > 0 && <Button variant="ghost" onClick={() => setStep(current => current - 1)}>BACK</Button>}
+        <span className="handoff-actions-spacer"/>
+        <Button variant="ghost" onClick={onClose}>CANCEL</Button>
+        {step < 3 ? <Button onClick={next} disabled={(step === 0 && (!activeProjectId || !activeSkill)) || (step === 2 && !providers.some(provider => provider.name === targetAi))}>CONTINUE</Button> : <><Button variant="ghost" onClick={onDownload}><Download size={14}/> DOWNLOAD</Button><Button variant="ghost" onClick={() => onOpen(targetAi)}>OPEN {targetAi.toUpperCase()} <ArrowUpRight size={14}/></Button><Button onClick={onCopy}><Clipboard size={14}/> COPY & LOG HANDOFF</Button></>}
+      </div>
+    </div>
   </Modal>
 }
 
