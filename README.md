@@ -7,7 +7,9 @@
 - VibeVault branding with the VV monogram and a responsive public landing page.
 - Email/password authentication and GitHub OAuth through Supabase Auth.
 - Project workspace with a permanent Conversation Vault, import review inbox, saved AI preferences, and a simplified handoff experience. The technical `AGENT.md` output is hidden behind an advanced control.
-- First-run AI workspace onboarding: select providers, assign personal roles, choose a default handoff destination, and optionally enable recommendations. Preferences are stored per account.
+- First-run guided AI onboarding: set work focus, experience level, preferred agent behaviour and response detail, then select AI providers, assign each a purpose and choose a default. Preferences are stored per account and included in generated handoffs.
+- Professional project transfer dialogs: choose the destination project and receiving AI for manual imports, browser-capture inbox imports and project exports. Saved agents require only confirmation; manually selected agents also require a task purpose.
+- MCP project discovery exposes saved agent preferences. MCP import and export tools require explicit project IDs and preserve original conversation text; compatible AI clients must confirm destinations conversationally because they cannot display the VibeVault browser UI.
 - Conversation import from pasted text, TXT/Markdown, JSON/JSONL archives (including ChatGPT-style `mapping` exports), with original source payload and import metadata preserved separately from cleaned specifications.
 - Project export as a portable JSON bundle containing project metadata, original conversations, source payloads, decisions, session summaries, handoff history and saved AI preferences; individual raw threads can be exported as Markdown.
 - Browser Capture extension (Chrome/Chromium MV3) for ChatGPT, Claude and Gemini. It captures the currently open conversation after an explicit click and sends it to a review inbox; users choose the project before it enters the permanent Vault.
@@ -72,7 +74,7 @@ Do not grant browser clients permission to update `profiles.is_pro`. The schema 
 
 ### Manual import and archive migration
 
-The in-app **IMPORT CONVERSATION** flow accepts pasted text, TXT, Markdown, JSON and JSONL. It understands common ChatGPT export conversation records containing a `mapping` object and stores each extracted transcript with the original source payload in `conversations.source_payload`. ZIP files are not unpacked in the browser: extract the archive first and select its JSON file. For a multi-conversation archive, choose the provider once; the selected source is applied to the imported records. Imported threads are assigned to the currently selected project. The original transcript is never replaced by the AI cleaner.
+The in-app **IMPORT CONVERSATION** flow opens a destination card first. Choose the project that should own the incoming threads, then confirm a saved AI agent or manually choose another AI and describe its purpose. It accepts pasted text, TXT, Markdown, JSON and JSONL. It understands common ChatGPT export conversation records containing a `mapping` object and stores each extracted transcript with the original source payload in `conversations.source_payload`. ZIP files are not unpacked in the browser: extract the archive first and select its JSON file. For a multi-conversation archive, choose the provider once; the selected source is applied to the imported records. Imported threads are assigned to the currently selected project. The original transcript is never replaced by the AI cleaner.
 
 ### Install the browser extension
 
@@ -97,9 +99,11 @@ Create an **MCP Server Connection** token under **CONNECTIONS** and configure a 
 - `get_project_context`
 - `get_handoff_context`
 - `save_session_summary`
+- `export_project_bundle` — export a selected project with its original conversations, decisions, summaries, global style and transfer destination metadata.
+- `import_conversations` — import user-supplied raw threads into a project selected by the user; raw text is stored without rewriting.
 - `save_project_decision`
 
-MCP can retrieve VibeVault project knowledge and save the summary/decisions the connected AI explicitly sends. It does not independently read every message from the AI provider's private chat history and does not promise full raw transcript capture. Use the browser extension or provider export/API for transcript capture. Write tools are authorized by the user's token and project ownership; an AI client should only save decisions the user has approved.
+MCP can retrieve VibeVault project knowledge and save the summary/decisions the connected AI explicitly sends. The `list_projects` tool also returns the user's saved AI agents and default destination. Before an MCP import or export, the connected AI should show the available project choices and ask the user to confirm the destination. If the user keeps a saved agent, show its name and ask for confirmation; if they manually choose a different AI, ask what it should be used for. MCP clients cannot open an in-app VibeVault modal, so this confirmation happens in the connected AI conversation. It does not independently read every message from the AI provider's private chat history and does not promise full raw transcript capture. Use the browser extension or provider export/API for transcript capture. Write tools are authorized by the user's token and project ownership; an AI client should only save decisions the user has approved.
 
 ## Export
 
