@@ -130,14 +130,32 @@ create policy "profiles_insert_own" on public.profiles for insert to authenticat
 drop policy if exists "profiles_update_own" on public.profiles;
 create policy "profiles_update_own" on public.profiles for update to authenticated using (id = (select auth.uid())) with check (id = (select auth.uid()));
 
-drop policy if exists "projects_select_own" on public.projects;
-create policy "projects_select_own" on public.projects for select to authenticated using (user_id = (select auth.uid()));
-drop policy if exists "projects_insert_own" on public.projects;
-create policy "projects_insert_own" on public.projects for insert to authenticated with check (user_id = (select auth.uid()));
-drop policy if exists "projects_update_own" on public.projects;
-create policy "projects_update_own" on public.projects for update to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
-drop policy if exists "projects_delete_own" on public.projects;
-create policy "projects_delete_own" on public.projects for delete to authenticated using (user_id = (select auth.uid()));
+-- Remove every legacy project policy before recreating the four non-recursive owner rules.
+-- Older installations may have extra policies whose subqueries read public.projects again.
+do $drop_project_rls_policies$
+declare
+  existing_policy record;
+begin
+  for existing_policy in
+    select policyname
+    from pg_policies
+    where schemaname = 'public' and tablename = 'projects'
+  loop
+    execute format('drop policy if exists %I on public.projects', existing_policy.policyname);
+  end loop;
+end;
+$drop_project_rls_policies$;
+
+create policy "projects_select_own" on public.projects
+  for select to authenticated using (user_id = (select auth.uid()));
+create policy "projects_insert_own" on public.projects
+  for insert to authenticated with check (user_id = (select auth.uid()));
+create policy "projects_update_own" on public.projects
+  for update to authenticated
+  using (user_id = (select auth.uid()))
+  with check (user_id = (select auth.uid()));
+create policy "projects_delete_own" on public.projects
+  for delete to authenticated using (user_id = (select auth.uid()));
 
 drop policy if exists "conversations_select_own" on public.conversations;
 create policy "conversations_select_own" on public.conversations for select to authenticated using (user_id = (select auth.uid()));
@@ -340,7 +358,8 @@ language sql
 stable
 security definer
 set search_path = ''
-as $$
+set row_security = off
+as $
   select exists (
     select 1 from public.projects p
     where p.id = target_project_id and p.user_id = target_user_id
