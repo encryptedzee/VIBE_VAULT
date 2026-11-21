@@ -584,7 +584,12 @@ function Dashboard({ session, initialPlan, onSignOut }) {
         const preferences = nextProfile.ai_preferences || EMPTY_AI_PREFERENCES
         setProviderPreferences(preferences)
         setTargetAi(preferences.last_target || 'Claude')
-        if (!nextProfile.onboarding_completed) setModal({ type: 'ai', onboarding: true })
+        const hasConfiguredProvider = Object.values(preferences.providers || {}).some(provider => provider?.enabled)
+        const hasPersonalisedProfile = Boolean(preferences.profile?.focus && preferences.profile?.collaboration)
+        // Legacy or incomplete profiles should still receive first-run setup.
+        if (!nextProfile.onboarding_completed || !hasConfiguredProvider || !hasPersonalisedProfile) {
+          setModal({ type: 'ai', onboarding: true })
+        }
 
         // Secondary workspace data is loaded after onboarding has been scheduled.
         const results = await Promise.allSettled([
