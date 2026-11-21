@@ -112,7 +112,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $$
 begin
   insert into public.profiles (id, email, display_name)
   values (new.id, coalesce(new.email, ''), coalesce(new.raw_user_meta_data ->> 'display_name', ''))
@@ -120,7 +120,7 @@ begin
 
   return new;
 end;
-$;
+$$;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created after insert on auth.users
@@ -368,7 +368,7 @@ stable
 security definer
 set search_path = ''
 set row_security = off
-as $
+as $$
   select exists (
     select 1 from public.projects p
     where p.id = target_project_id and p.user_id = target_user_id
