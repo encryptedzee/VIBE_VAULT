@@ -49,8 +49,12 @@ The checkout URLs are the Polar (or other hosted checkout) payment links for the
 2. Run the complete `supabase/schema.sql` in the Supabase SQL Editor. Re-run it after pulling updates to refresh the Starter-limit trigger functions.
 3. Re-run the complete `supabase/schema.sql` after pulling this update. The migration adds AI preferences, capture inbox, hashed integration tokens, project decisions and session summaries. It also replaces the child-table project ownership checks with a `SECURITY DEFINER` helper to avoid policy recursion from project lookups.
 4. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in your local `.env`.
-5. In **Authentication → Providers**, enable Email and GitHub. Configure the GitHub OAuth app with the callback URL displayed by Supabase.
-6. In **Authentication → URL Configuration**, set your site URL and add local and production origins to the allowed redirect URLs. GitHub OAuth redirects back to `window.location.origin`.
+5. In **Authentication → Providers**, enable Email and GitHub. In the GitHub OAuth application, use the Supabase callback URL shown by Supabase (the URL ending in `/auth/v1/callback`); this is GitHub's provider callback and is not the VibeVault app callback.
+6. In **Authentication → URL Configuration**, set the Site URL to your production app origin and add these exact app redirect URLs to the allowed redirect URLs:
+   - Production: `https://vibevault.vibevault-hq.workers.dev/auth/callback`
+   - Local development: `http://localhost:5173/auth/callback`
+
+   VibeVault sends GitHub OAuth and email-confirmation flows to `/auth/callback`, exchanges/restores the Supabase session there, and then routes authenticated users into `/app`. If the production callback URL is not allow-listed in Supabase, the provider may return the user to the site without completing the intended workspace route.
 7. Deploy the two new integration functions with JWT verification disabled because they authenticate using their own revocable VibeVault tokens:
 
 ```bash

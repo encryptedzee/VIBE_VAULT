@@ -6,7 +6,7 @@ import {
   FileJson, FileText, FolderKanban, Inbox, KeyRound, Layers3, LogOut, Menu, Plus, Plug,
   Search, Settings2, ShieldCheck, Sparkles, Upload, X, Activity, Bot, BookOpen, Braces,
   CircleDot, Clock3, Code, File, GitBranch, History, LayoutDashboard, MessageSquareText,
-  PanelsTopLeft, Terminal, Workflow, Zap
+  PanelsTopLeft, Terminal, Workflow, Zap, Github
 } from 'lucide-react'
 import { hasSupabaseConfig, supabase } from './lib/supabase'
 
@@ -144,37 +144,61 @@ function App() {
   const location = useLocation()
   const [session, setSession] = useState(null)
   const [authReady, setAuthReady] = useState(false)
+  const authEventVersion = useRef(0)
   const [splash, setSplash] = useState(!sessionStorage.getItem('vibevault-splash-seen'))
 
   useEffect(() => {
+    if (!supabase) { setAuthReady(true); return }
     let alive = true
-    if (!supabase) { setAuthReady(true); return () => { alive = false } }
-    supabase.auth.getSession().then(({ data }) => {
-      if (alive) { setSession(data.session); setAuthReady(true) }
-    }).catch(() => alive && setAuthReady(true))
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      // A newer auth event wins over the initial getSession result.
+      authEventVersion.current += 1
       setSession(nextSession)
       setAuthReady(true)
     })
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!alive || error) return
+      if (authEventVersion.current === 0) setSession(data.session)
+      setAuthReady(true)
+    }).catch(() => { if (alive) setAuthReady(true) })
     return () => { alive = false; listener.subscription.unsubscribe() }
   }, [])
 
   useEffect(() => {
+    if (!authReady) return
+    if (location.pathname === '/auth/callback') {
+      if (session) {
+        const pendingPlan = sessionStorage.getItem('vibevault-pending-upgrade') || location.state?.upgradePlan || null
+        if (pendingPlan) sessionStorage.removeItem('vibevault-pending-upgrade')
+        navigate('/app', { replace: true, state: pendingPlan ? { upgradePlan: pendingPlan } : undefined })
+      } else {
+        const params = new URLSearchParams(location.search)
+        const callbackError = params.get('error_description') || params.get('error') || 'GitHub authorization did not return an active VibeVault session.'
+        navigate('/auth?oauth=failed', { replace: true, state: { oauthError: callbackError } })
+      }
+      return
+    }
     if (session && location.pathname === '/') {
       const pendingPlan = sessionStorage.getItem('vibevault-pending-upgrade')
       if (pendingPlan) {
         sessionStorage.removeItem('vibevault-pending-upgrade')
-        navigate('/app', { state: { upgradePlan: pendingPlan } })
+        navigate('/app', { replace: true, state: { upgradePlan: pendingPlan } })
       }
+      return
     }
-  }, [session, location.pathname, navigate])
+    if (session && location.pathname.startsWith('/auth')) {
+      const pendingPlan = sessionStorage.getItem('vibevault-pending-upgrade') || location.state?.upgradePlan || null
+      if (pendingPlan) sessionStorage.removeItem('vibevault-pending-upgrade')
+      navigate('/app', { replace: true, state: pendingPlan ? { upgradePlan: pendingPlan } : undefined })
+    }
+  }, [session, authReady, location.pathname, location.search, location.state, navigate])
 
   useEffect(() => {
     if (!splash) return
     const timer = window.setTimeout(() => {
       setSplash(false)
       sessionStorage.setItem('vibevault-splash-seen', '1')
-    }, 1600)
+    }, 1200)
     return () => window.clearTimeout(timer)
   }, [splash])
 
@@ -182,22 +206,43 @@ function App() {
     setSplash(false)
     sessionStorage.setItem('vibevault-splash-seen', '1')
   }
+  const openWorkspace = () => navigate(session ? '/app' : '/auth')
+  const openPlan = (plan) => {
+    if (plan === 'starter') {
+      navigate(session ? '/app' : '/auth', { state: session ? undefined : { authMode: 'signup' } })
+      return
+    }
+    navigate(session ? '/app' : '/auth', { state: { upgradePlan: plan } })
+  }
+  const signOut = async () => {
+    try { await supabase?.auth.signOut() } finally { navigate('/', { replace: true }) }
+  }
 
   let screen
-  if (location.pathname.startsWith('/auth')) {
-    screen = <AuthPage pendingPlan={location.state?.upgradePlan} onBack={() => navigate('/')} onSuccess={() => navigate('/app', { state: location.state })} />
+  if (location.pathname === '/auth/callback') {
+    screen = session
+      ? <AuthRedirect ready={authReady} onGo={() => navigate('/app', { replace: true })}/>
+      : <AuthCallbackStatus ready={authReady}/>
+  } else if (location.pathname.startsWith('/auth')) {
+    screen = session
+      ? <AuthRedirect ready={authReady} onGo={() => navigate('/app', { replace: true, state: location.state })}/>
+      : <AuthPage initialMode={location.state?.authMode} pendingPlan={location.state?.upgradePlan || sessionStorage.getItem('vibevault-pending-upgrade')} oauthError={location.state?.oauthError} onBack={() => navigate('/')} onSuccess={() => navigate('/app', { state: location.state })}/>
   } else if (location.pathname.startsWith('/app')) {
     screen = authReady && session
-      ? <Dashboard session={session} initialPlan={location.state?.upgradePlan} onSignOut={() => { supabase?.auth.signOut(); navigate('/') }} />
-      : <AuthRedirect ready={authReady} onGo={() => navigate('/auth')} />
+      ? <Dashboard session={session} initialPlan={location.state?.upgradePlan} onSignOut={signOut}/>
+      : <AuthRedirect ready={authReady} onGo={() => navigate('/auth')}/>
   } else {
-    screen = <Landing onAuth={() => navigate('/auth')} onPlanClick={(plan) => navigate(session ? '/app' : '/auth', { state: { upgradePlan: plan } })} />
+    screen = <Landing session={session} onAuth={openWorkspace} onWorkspace={() => navigate('/app')} onPlanClick={openPlan}/>
   }
 
   return <>
     {screen}
-    {splash && <Splash onSkip={skipSplash} />}
+    {splash && <Splash onSkip={skipSplash}/>}
   </>
+}
+
+function AuthCallbackStatus({ ready }) {
+  return <div className="auth-redirect"><StatusLine>GITHUB AUTHENTICATION</StatusLine><h1 className="display">{ready ? 'FINALIZING ACCESS' : 'RESTORING SESSION'}</h1><p>{ready ? 'Returning to your VibeVault workspace.' : 'Verifying your GitHub identity and restoring your session.'}</p><span className="auth-progress-spinner"/></div>
 }
 
 function Splash({ onSkip }) {
@@ -215,7 +260,7 @@ function Splash({ onSkip }) {
   </div>
 }
 
-function Landing({ onAuth, onPlanClick }) {
+function Landing({ session, onAuth, onWorkspace, onPlanClick }) {
   const scrollTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
   return <main className="landing-page">
     <header className="top-nav">
@@ -223,8 +268,8 @@ function Landing({ onAuth, onPlanClick }) {
       <nav className="nav-links" aria-label="Main navigation">
         <button onClick={() => scrollTo('relay-loop')}>HOW IT WORKS</button>
         <button onClick={() => scrollTo('subscriptions')}>SUBSCRIPTIONS</button>
-        <Button variant="ghost" onClick={onAuth}>SIGN IN</Button>
-        <Button onClick={onAuth}>LAUNCH VAULT <ArrowUpRight size={15}/></Button>
+        <span className={session ? 'visitor-state visitor-signed-in' : 'visitor-state'}>{session ? 'SIGNED IN · ' + (session.user.email || 'ACCOUNT ACTIVE') : 'GUEST SESSION'}</span>
+        <Button onClick={session ? onWorkspace : onAuth}>{session ? 'OPEN WORKSPACE' : 'SIGN IN'} <ArrowUpRight size={15}/></Button>
       </nav>
       <button className="mobile-menu icon-button" onClick={() => scrollTo('relay-loop')} aria-label="Jump to sections"><Menu size={19}/></button>
     </header>
@@ -235,7 +280,7 @@ function Landing({ onAuth, onPlanClick }) {
         <div className="eyebrow hero-eyebrow"><span className="eyebrow-rule"/>CLOUD AI MEMORY & DYNAMIC HANDOFF CONTROL</div>
         <h1 className="display hero-title">STOP TREATING EVERY AI<br/><span className="hero-gradient">LIKE A STRANGER</span></h1>
         <p className="hero-copy">GitHub stores your code. VibeVault stores your exact raw AI conversations, personal coding rules, and role-specific <code>AGENT.md</code> handoffs across Claude, ChatGPT, Lovable, Base44, Trae, and Qoder.</p>
-        <div className="hero-actions"><Button onClick={onAuth}>OPEN CONTROL VAULT <ArrowUpRight size={16}/></Button><Button variant="ghost" onClick={() => scrollTo('relay-loop')}>EXPLORE THE RELAY <ArrowDown size={15}/></Button></div>
+        <div className="hero-actions"><Button variant="ghost" onClick={() => scrollTo('relay-loop')}>EXPLORE HOW IT WORKS <ArrowDown size={15}/></Button></div>
       </div>
       <div className="hero-strip">
         <div className="hero-metric"><strong>01</strong><span>RAW CONVO VAULT</span></div>
@@ -261,7 +306,7 @@ function Landing({ onAuth, onPlanClick }) {
       <div className="section-container">
         <Reveal><div className="eyebrow pricing-eyebrow"><span className="eyebrow-rule"/>ACCESS TIERS</div><h2 className="display pricing-title">OWN YOUR AI BRAIN FOREVER.</h2></Reveal>
         <div className="pricing-grid">
-          <Reveal delay={0}><PlanCard name="STARTER VAULT" price="$0" period="FOREVER" features={['1 active project','3 saved raw conversations','3 built-in AGENT.md roles','1-click launch in Claude & ChatGPT']} action="START FREE" onClick={onAuth}/></Reveal>
+          <Reveal delay={0}><PlanCard name="STARTER VAULT" price="$0" period="FOREVER" features={['1 active project','3 saved raw conversations','3 built-in AGENT.md roles','1-click launch in Claude & ChatGPT']} action={session ? 'OPEN WORKSPACE' : 'START FREE'} onClick={() => onPlanClick('starter')}/></Reveal>
           <Reveal delay={100}><PlanCard featured name="PRO VIBE-CODER" price="$9" period="MONTH" features={['Unlimited projects & raw conversations','Built-in AI Smart Spec Cleaner','Unlimited custom AGENT.md roles','Priority MCP plugin access']} action="UPGRADE TO PRO" onClick={() => onPlanClick('pro')}/></Reveal>
           <Reveal delay={200}><PlanCard name="FOUNDER LIFETIME" price="$49" period="ONE-TIME" badge="FIRST 50 FOUNDERS" features={['Everything in Pro forever','Zero monthly bills','VIP Founder badge','Direct feature voting']} action="CLAIM FOUNDER LIFETIME" onClick={() => onPlanClick('lifetime')}/></Reveal>
         </div>
@@ -270,7 +315,7 @@ function Landing({ onAuth, onPlanClick }) {
     </section>
 
     <section className="final-cta">
-      <div className="section-container cta-inner"><div><div className="eyebrow"><span className="eyebrow-rule"/>YOUR MEMORY. YOUR RULES.</div><h2 className="display cta-title">YOUR IDEAS BELONG TO YOU.<br/>NOT ONE AI TAB.</h2></div><Button onClick={onAuth}>CREATE FREE VAULT <ArrowUpRight size={16}/></Button></div>
+      <div className="section-container cta-inner"><div><div className="eyebrow"><span className="eyebrow-rule"/>YOUR MEMORY. YOUR RULES.</div><h2 className="display cta-title">YOUR IDEAS BELONG TO YOU.<br/>NOT ONE AI TAB.</h2></div><span className="final-cta-note">{session ? 'YOUR PROJECTS AND CONVERSATIONS ARE READY IN THE WORKSPACE.' : 'SIGN IN ONCE TO KEEP YOUR PROJECT CONTEXT AVAILABLE ACROSS SESSIONS.'}</span></div>
     </section>
     <footer className="site-footer"><div className="footer-brand"><Brand/><StatusLine>MEMORY SYSTEM ACTIVE</StatusLine></div><span>© {new Date().getFullYear()} VIBEVAULT</span><span>KEEP THE CONTEXT. MOVE THE WORK.</span></footer>
   </main>
@@ -292,13 +337,17 @@ function AuthRedirect({ ready, onGo }) {
   return <div className="auth-redirect"><StatusLine>VAULT ACCESS</StatusLine><h1 className="display">{ready ? 'AUTHENTICATION REQUIRED' : 'RESTORING SESSION'}</h1><p>{ready ? 'Sign in to access your saved projects, conversations and handoff engine.' : 'Checking your secure session.'}</p>{ready && <Button onClick={onGo}>GO TO VAULT ACCESS <ArrowRight size={15}/></Button>}</div>
 }
 
-function AuthPage({ onBack, onSuccess, pendingPlan }) {
-  const [mode, setMode] = useState('signin')
+function AuthPage({ onBack, onSuccess, pendingPlan, oauthError, initialMode }) {
+  const [mode, setMode] = useState(initialMode || 'signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [busy, setBusy] = useState(false)
-  const [notice, setNotice] = useState(null)
+  const [notice, setNotice] = useState(oauthError ? { type: 'error', text: oauthError } : null)
+
+  useEffect(() => {
+    if (pendingPlan) sessionStorage.setItem('vibevault-pending-upgrade', pendingPlan)
+  }, [pendingPlan])
 
   const continueWithGithub = async () => {
     setNotice(null)
@@ -306,12 +355,17 @@ function AuthPage({ onBack, onSuccess, pendingPlan }) {
     if (pendingPlan) sessionStorage.setItem('vibevault-pending-upgrade', pendingPlan)
     setBusy(true)
     try {
-      const { error } = await supabase.auth.signInWithOAuth({ provider: 'github', options: { redirectTo: window.location.origin } })
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'github',
+        options: { redirectTo: window.location.origin + '/auth/callback' }
+      })
       if (error) throw error
+      // Leave the loading state visible while the browser redirects to GitHub.
     } catch (error) {
       sessionStorage.removeItem('vibevault-pending-upgrade')
+      setBusy(false)
       setNotice({ type: 'error', text: error.message || 'GitHub sign-in could not be started.' })
-    } finally { setBusy(false) }
+    }
   }
 
   const submit = async (event) => {
@@ -327,7 +381,7 @@ function AuthPage({ onBack, onSuccess, pendingPlan }) {
       } else {
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(), password,
-          options: { data: { display_name: displayName.trim() } }
+          options: { data: { display_name: displayName.trim() }, emailRedirectTo: window.location.origin + '/auth/callback' }
         })
         if (error) throw error
         if (data.session) onSuccess()
@@ -345,8 +399,14 @@ function AuthPage({ onBack, onSuccess, pendingPlan }) {
       <section className="auth-form-area">
         <div className="auth-form-head"><span className="eyebrow">IDENTITY CHECK</span><h2 className="display">{mode === 'signin' ? 'WELCOME BACK.' : 'BUILD YOUR VAULT.'}</h2><p>{mode === 'signin' ? 'Enter your credentials to restore your working context.' : 'Create an account to start preserving your AI work.'}</p></div>
         <div className="auth-tabs"><button className={mode === 'signin' ? 'active' : ''} onClick={() => { setMode('signin'); setNotice(null) }}>SIGN IN</button><button className={mode === 'signup' ? 'active' : ''} onClick={() => { setMode('signup'); setNotice(null) }}>CREATE ACCOUNT</button></div>
-        <Button variant="ghost" className="github-auth-btn" type="button" onClick={continueWithGithub} disabled={busy}><Code2 size={17}/> CONTINUE WITH GITHUB</Button>
-        <div className="auth-divider"><span>OR CONTINUE WITH EMAIL</span></div>
+        <div className="auth-provider-block">
+          <button className="github-auth-btn" type="button" onClick={continueWithGithub} disabled={busy}>
+            <span className="github-auth-icon"><Github size={21}/></span>
+            <span className="github-auth-copy"><strong>{busy ? 'CONNECTING TO GITHUB…' : 'Continue with GitHub'}</strong><small>Secure sign-in with your GitHub account</small></span>
+            {busy ? <span className="github-auth-spinner"/> : <ArrowUpRight className="github-auth-arrow" size={17}/>}
+          </button>
+        </div>
+        <div className="auth-divider"><span>OR USE EMAIL</span></div>
         <form className="auth-form" onSubmit={submit}>
           {mode === 'signup' && <label className="field-label">DISPLAY NAME<input className="field-input" value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="How should we address you?" autoComplete="name" required/></label>}
           <label className="field-label">EMAIL ADDRESS<input className="field-input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" required/></label>
