@@ -234,6 +234,24 @@ for each row execute function public.enforce_starter_limits();
 -- VibeVault Continuity, Import, and Integration Layer (2026-11-21)
 -- Re-run this file in the Supabase SQL Editor after deploying the matching Edge Functions.
 
+-- Existing installations may have created public.projects before the composite
+-- owner key was added to the schema. CREATE TABLE IF NOT EXISTS does not retrofit
+-- constraints, so add the referenced key explicitly before creating child FKs.
+do $
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conrelid = 'public.projects'::regclass
+      and conname = 'projects_id_user_id_unique'
+      and contype = 'u'
+  ) then
+    alter table public.projects
+      add constraint projects_id_user_id_unique unique (id, user_id);
+  end if;
+end;
+$;
+
 alter table public.profiles
   add column if not exists ai_preferences jsonb not null default '{"providers":{},"last_target":"Claude","recommendations":false}'::jsonb,
   add column if not exists onboarding_completed boolean not null default false;
