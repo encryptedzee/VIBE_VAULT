@@ -1106,7 +1106,7 @@ function Dashboard({ session, initialPlan, onSignOut }) {
         <div className="ide-sidebar-nav">
           {navGroups.map(group => <section className="ide-nav-group" key={group.label}>
             <div className="ide-nav-group-label">{group.label}</div>
-            {group.items.map(item => <button key={item.id} className={'ide-nav-item ' + (activePane === item.id ? 'active' : '')} onClick={() => setPane(item.id)}><item.icon size={15}/><span>{item.label}</span>{navCount(item) !== '' && Number(navCount(item)) > 0 && <small>{navCount(item)}</small>}</button>)}
+            {group.items.map(item => <button key={item.id} className={'ide-nav-item ' + (activePane === item.id || (item.id === 'conversations' && activePane === 'conversation') ? 'active' : '')} aria-current={activePane === item.id || (item.id === 'conversations' && activePane === 'conversation') ? 'page' : undefined} onClick={() => setPane(item.id)}><item.icon size={15}/><span>{item.label}</span>{navCount(item) !== '' && Number(navCount(item)) > 0 && <small>{navCount(item)}</small>}</button>)}
           </section>)}
         </div>
         <div className="ide-explorer-section-head conversation-tree-head"><span><ChevronDown size={13}/> CONVERSATION FILES</span><button title="Import conversation" onClick={requestSaveConversation}><Plus size={14}/></button></div>
@@ -1188,7 +1188,7 @@ function Dashboard({ session, initialPlan, onSignOut }) {
           </div>}
 
           {activePane === 'conversation' && activeConversation && <div className="ide-conversation-page">
-            <div className="ide-document-heading"><div><span className="ide-kicker">CONVERSATION FILE · {activeConversation.source_ai.toUpperCase()}</span><h1>{activeConversation.title}</h1><p>Original discussion preserved in VibeVault. Select text and code as reference for the next agent.</p></div><div className="ide-heading-actions"><Button variant="ghost" onClick={() => navigator.clipboard?.writeText(activeConversation.raw_content || '')}><Clipboard size={14}/> COPY ORIGINAL</Button><Button onClick={() => setSelectedIds(current => current.includes(activeConversation.id) ? current : [...current, activeConversation.id])}><Plus size={14}/> ADD TO CONTEXT</Button></div></div>
+            <div className="ide-document-heading"><div><span className="ide-kicker">CONVERSATION FILE · {activeConversation.source_ai.toUpperCase()}</span><h1>{activeConversation.title}</h1><p>Review the preserved source thread, switch to a structured specification, or attach this conversation to your next agent handoff.</p></div><div className="ide-heading-actions"><Button variant="ghost" onClick={() => navigator.clipboard?.writeText(activeConversation.raw_content || '')}><Clipboard size={14}/> COPY ORIGINAL</Button><Button variant={selectedIds.includes(activeConversation.id) ? 'solid' : 'ghost'} aria-pressed={selectedIds.includes(activeConversation.id)} title={selectedIds.includes(activeConversation.id) ? 'Remove this conversation from the next handoff' : 'Attach this conversation to the next handoff'} onClick={() => toggleConversation(activeConversation.id)}>{selectedIds.includes(activeConversation.id) ? <Check size={14}/> : <Plus size={14}/>} {selectedIds.includes(activeConversation.id) ? 'IN HANDOFF CONTEXT' : 'ADD TO CONTEXT'}</Button></div></div>
             <ConversationEditor conversation={activeConversation} mode={transcriptMode} isPro={isPro} onModeChange={setTranscriptMode} cleaning={cleaningId === activeConversation.id} onClean={() => generateCleanSpec(activeConversation)}/>
           </div>}
 
@@ -1301,7 +1301,7 @@ function Dashboard({ session, initialPlan, onSignOut }) {
 
     <nav className="ide-mobile-dock" aria-label="Mobile workspace navigation">
       <button className={!mobileAgentVisible && activePane === 'overview' ? 'active' : ''} onClick={() => setPane('overview')}><LayoutDashboard size={16}/><span>Overview</span></button>
-      <button className={!mobileAgentVisible && activePane === 'conversations' ? 'active' : ''} onClick={() => setPane('conversations')}><MessageSquareText size={16}/><span>Vault</span></button>
+      <button className={!mobileAgentVisible && (activePane === 'conversations' || activePane === 'conversation') ? 'active' : ''} aria-current={!mobileAgentVisible && (activePane === 'conversations' || activePane === 'conversation') ? 'page' : undefined} onClick={() => setPane('conversations')}><MessageSquareText size={16}/><span>Vault</span></button>
       <button className={!mobileAgentVisible && activePane === 'inbox' ? 'active' : ''} onClick={() => setPane('inbox')}><Inbox size={16}/><span>Inbox</span>{captureInbox.length > 0 && <em>{captureInbox.length}</em>}</button>
       <button className={mobileAgentVisible ? 'active' : ''} onClick={() => setMobileAgentVisible(true)}><Bot size={16}/><span>Agent</span></button>
     </nav>
