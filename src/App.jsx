@@ -1086,7 +1086,7 @@ function Dashboard({ session, initialPlan, onSignOut }) {
         <span className="ide-top-divider"/>
         <div className="ide-workspace-name"><small>WORKSPACE</small><strong>{activeProject?.title || 'No project selected'}</strong></div>
         <span className="ide-top-status"><span className="status-pulse"/> {busy ? 'SYNCING' : 'SAVED'}</span>
-        {IS_FEATURE_PREVIEW_HOST && <span className="ide-feature-preview-badge" title="This is the green-and-white workspace redesign preview">FEATURE PREVIEW · VIBEVAULT</span>}
+        {IS_FEATURE_PREVIEW_HOST && <span className="ide-feature-preview-badge" title="VibeVault landing-page theme preview">FEATURE PREVIEW · VIBEVAULT</span>}
       </div>
       <div className="ide-topbar-right">
         <button className="ide-global-search-trigger" onClick={() => setSearchOpen(true)} aria-label="Search VibeVault"><Search size={15}/><span>Search projects, conversations, decisions…</span><kbd>Ctrl K</kbd></button>
@@ -1155,7 +1155,7 @@ function Dashboard({ session, initialPlan, onSignOut }) {
         <div className="ide-breadcrumb"><span>VIBEVAULT</span><ChevronRight size={12}/><span>{activeProject?.title || 'WORKSPACE'}</span><ChevronRight size={12}/><strong>{activePane === 'conversation' ? activeConversation?.title || 'Conversation' : navItems.find(item => item.id === activePane)?.label || 'Overview'}</strong><span className="ide-breadcrumb-spacer"/><span className="ide-branch"><GitBranch size={12}/> PROJECT CONTEXT</span></div>
         <div className="ide-editor-scroll">
           {activePane === 'overview' && !busy && <section className="ide-welcome-heading" aria-label="Personalized welcome">
-            <div><span className="ide-kicker">YOUR VIBEVAULT</span><h1>Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, {((profile?.display_name || user.user_metadata?.display_name || user.email?.split('@')[0] || 'there').trim().split(/\\s+/)[0])}.</h1><p>Your AI workspace is ready. Pick up where you left off.</p></div>
+            <div><span className="ide-kicker">YOUR VIBEVAULT</span><h1>Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, {((profile?.display_name || user.user_metadata?.display_name || user.email?.split('@')[0] || 'there').trim().split(/\s+/)[0])}.</h1><p>Your AI workspace is ready. Pick up where you left off.</p></div>
             <span className="ide-welcome-status"><i/> PRIVATE WORKSPACE</span>
           </section>}
           {busy && <div className="ide-loading"><span className="ide-loading-bar"/><p>SYNCING PROJECT FILES…</p></div>}
