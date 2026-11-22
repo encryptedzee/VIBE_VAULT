@@ -550,7 +550,7 @@ function Dashboard({ session, onSignOut }) {
   ]
 
   return (
-    <main className="vv-workspace-shell">
+    <main className={"vv-workspace-shell" + (activePage === 'model-selected' && chosenModel ? ' vv-model-active' : '')} style={activePage === 'model-selected' && chosenModel ? modelTheme(chosenModel) : undefined}>
       <aside className="vv-sidebar" aria-label="VibeVault navigation">
         <div className="vv-sidebar-brand">
           <Brand />
