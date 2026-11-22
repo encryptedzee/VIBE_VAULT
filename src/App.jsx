@@ -550,7 +550,22 @@ function Dashboard({ session, onSignOut }) {
   ]
 
   return (
-    <main className={"vv-workspace-shell" + (activePage === 'model-selected' && chosenModel ? ' vv-model-active' : '')} style={activePage === 'model-selected' && chosenModel ? modelTheme(chosenModel) : undefined}>
+    <main
+      className={"vv-workspace-shell" + (activePage === 'model-selected' && chosenModel ? ' vv-model-active' : '')}
+      style={activePage === 'model-selected' && chosenModel ? modelTheme(chosenModel) : undefined}
+      onPointerMove={event => {
+        if (event.pointerType === 'touch') return
+        const root = event.currentTarget
+        const bounds = root.getBoundingClientRect()
+        root.style.setProperty('--vv-pointer-x', `${event.clientX - bounds.left}px`)
+        root.style.setProperty('--vv-pointer-y', `${event.clientY - bounds.top}px`)
+      }}
+      onPointerLeave={event => {
+        const root = event.currentTarget
+        root.style.setProperty('--vv-pointer-x', `${root.clientWidth / 2}px`)
+        root.style.setProperty('--vv-pointer-y', `${root.clientHeight / 2}px`)
+      }}
+    >
       <aside className="vv-sidebar" aria-label="VibeVault navigation">
         <div className="vv-sidebar-brand">
           <Brand />
