@@ -475,6 +475,16 @@ function Dashboard({ session, onSignOut }) {
   const [activeModelIndex, setActiveModelIndex] = useState(0)
   const [modelIntent, setModelIntent] = useState('create')
   const [chosenModel, setChosenModel] = useState(null)
+  const [vaults, setVaults] = useState([])
+  const [vaultsLoading, setVaultsLoading] = useState(true)
+  const [vaultSearch, setVaultSearch] = useState('')
+  const [vaultTitle, setVaultTitle] = useState('')
+  const [vaultDescription, setVaultDescription] = useState('')
+  const [savingVault, setSavingVault] = useState(false)
+  const [selectedVault, setSelectedVault] = useState(null)
+  const [vaultConversations, setVaultConversations] = useState([])
+  const [vaultConversationsLoading, setVaultConversationsLoading] = useState(false)
+  const [vaultError, setVaultError] = useState('')
   const touchStartX = useRef(null)
 
   const aiModels = [
@@ -512,6 +522,37 @@ function Dashboard({ session, onSignOut }) {
     return () => { active = false }
   }, [user.id])
 
+  useEffect(() => {
+    let active = true
+    const loadVaults = async () => {
+      if (!supabase) {
+        if (active) {
+          setVaults([])
+          setVaultError('Connect Supabase to load your saved vaults.')
+          setVaultsLoading(false)
+        }
+        return
+      }
+      setVaultsLoading(true)
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id,title,description,tags,created_at,updated_at')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false })
+      if (!active) return
+      if (error) {
+        setVaultError(error.message)
+        setVaults([])
+      } else {
+        setVaultError('')
+        setVaults(data || [])
+      }
+      setVaultsLoading(false)
+    }
+    loadVaults()
+    return () => { active = false }
+  }, [user.id])
+
   useEffect(() => { setActiveModelIndex(0) }, [modelSearch])
 
   const firstName = (displayName || fallbackName).trim().split(/\s+/)[0] || 'there'
@@ -519,6 +560,10 @@ function Dashboard({ session, onSignOut }) {
   const greeting = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening'
   const filteredModels = aiModels.filter(model => (model.name + ' ' + model.descriptor).toLowerCase().includes(modelSearch.trim().toLowerCase()))
   const activeModel = filteredModels[activeModelIndex] || filteredModels[0] || null
+  const filteredVaults = vaults.filter(vault =>
+    (vault.title + ' ' + (vault.description || '')).toLowerCase().includes(vaultSearch.trim().toLowerCase())
+  )
+  const selectedVaultAI = selectedVault?.tags?.find(tag => tag.startsWith('ai:'))?.slice(3) || chosenModel?.name || 'AI not selected'
   const modelTheme = model => ({
     '--model-accent': model.accent,
     '--model-second': model.second,
@@ -542,6 +587,64 @@ function Dashboard({ session, onSignOut }) {
   const goToPage = page => {
     setActivePage(page)
     if (page !== 'model-picker') setModelSearch('')
+    if (page === 'vaults') setVaultError('')
+  }
+  const beginVaultCreation = () => {
+    setVaultTitle('')
+    setVaultDescription('')
+    setVaultError('')
+    setActivePage('vault-create')
+  }
+  const createVault = async event => {
+    event.preventDefault()
+    const title = vaultTitle.trim()
+    if (!title || savingVault) return
+    if (!supabase) {
+      setVaultError('Supabase is not connected. Configure the project URL and anon key first.')
+      return
+    }
+    setSavingVault(true)
+    setVaultError('')
+    const tags = chosenModel ? [`ai:${chosenModel.name}`] : []
+    const { data, error } = await supabase
+      .from('projects')
+      .insert({
+        user_id: user.id,
+        title,
+        description: vaultDescription.trim(),
+        tags
+      })
+      .select('id,title,description,tags,created_at,updated_at')
+      .single()
+    setSavingVault(false)
+    if (error) {
+      setVaultError(error.message)
+      return
+    }
+    setVaults(current => [data, ...current])
+    setSelectedVault(data)
+    setVaultConversations([])
+    setActivePage('vault-detail')
+  }
+  const openVault = async vault => {
+    setSelectedVault(vault)
+    setActivePage('vault-detail')
+    setVaultConversationsLoading(true)
+    setVaultError('')
+    if (!supabase) {
+      setVaultError('Supabase is not connected.')
+      setVaultConversationsLoading(false)
+      return
+    }
+    const { data, error } = await supabase
+      .from('conversations')
+      .select('id,title,source_ai,created_at,tags,cleaned_spec')
+      .eq('project_id', vault.id)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+    if (error) setVaultError(error.message)
+    else setVaultConversations(data || [])
+    setVaultConversationsLoading(false)
   }
   const navItems = [
     { id: 'overview', label: 'Overview', hint: 'Your workspace', icon: LayoutDashboard, mark: '01' },
@@ -551,8 +654,8 @@ function Dashboard({ session, onSignOut }) {
 
   return (
     <main
-      className={"vv-workspace-shell" + (activePage === 'model-selected' && chosenModel ? ' vv-model-active' : '')}
-      style={activePage === 'model-selected' && chosenModel ? modelTheme(chosenModel) : undefined}
+      className={"vv-workspace-shell" + (chosenModel && ['model-selected', 'vault-create', 'vault-detail'].includes(activePage) ? ' vv-model-active' : '')}
+      style={chosenModel && ['model-selected', 'vault-create', 'vault-detail'].includes(activePage) ? modelTheme(chosenModel) : undefined}
       onPointerMove={event => {
         if (event.pointerType === 'touch') return
         const root = event.currentTarget
@@ -577,7 +680,8 @@ function Dashboard({ session, onSignOut }) {
           {navItems.map(item => {
             const Icon = item.icon
             const isActive = activePage === item.id ||
-              (item.id === 'handoff' && ['model-picker', 'model-selected'].includes(activePage))
+              (item.id === 'vaults' && ['vault-create', 'vault-detail'].includes(activePage)) ||
+              (item.id === 'handoff' && modelIntent === 'handoff' && ['model-picker', 'model-selected'].includes(activePage))
             return (
               <button
                 type="button"
@@ -657,12 +761,47 @@ function Dashboard({ session, onSignOut }) {
         )}
 
         {activePage === 'vaults' && (
-          <div className="vv-empty-page">
-            <div className="vv-empty-illustration vv-empty-vault-art" aria-hidden="true"><span/><span/><span/><i>+</i></div>
-            <span className="vv-welcome-label">YOUR COLLECTION</span>
-            <h1>My Vaults</h1>
-            <p>Your saved AI conversations and context spaces will appear here.</p>
-            <button type="button" className="vv-card-button vv-card-button-primary" onClick={() => openModelPicker('create')}>Create a Vault <ArrowUpRight size={16}/></button>
+          <div className="vv-vaults-page">
+            <div className="vv-page-heading vv-vaults-heading">
+              <div>
+                <span className="vv-welcome-label">YOUR PRIVATE COLLECTION</span>
+                <h1>My Vaults</h1>
+                <p>Every project keeps its conversations, decisions and working context together.</p>
+              </div>
+              <button type="button" className="vv-card-button vv-card-button-primary" onClick={() => openModelPicker('create')}><Plus size={16}/> New Vault</button>
+            </div>
+            <div className="vv-vaults-toolbar">
+              <label className="vv-vault-search"><Search size={17}/><input value={vaultSearch} onChange={event => setVaultSearch(event.target.value)} placeholder="Search your vaults..." aria-label="Search your vaults"/></label>
+              <span className="vv-vaults-count">{vaults.length} {vaults.length === 1 ? 'VAULT' : 'VAULTS'}</span>
+            </div>
+            {vaultError && <div className="vv-inline-error" role="alert">{vaultError}</div>}
+            {vaultsLoading ? (
+              <div className="vv-vaults-loading"><span className="vv-loading-orbit"/><span>Loading your vaults...</span></div>
+            ) : filteredVaults.length ? (
+              <div className="vv-vault-grid">
+                {filteredVaults.map((vault, index) => {
+                  const aiName = vault.tags?.find(tag => tag.startsWith('ai:'))?.slice(3) || 'AI not selected'
+                  const aiModel = aiModels.find(model => model.name === aiName)
+                  return (
+                    <button type="button" className="vv-vault-card" key={vault.id} onClick={() => openVault(vault)} style={aiModel ? modelTheme(aiModel) : undefined}>
+                      <span className="vv-vault-card-art"><span/><span/><span/><i>{aiName === 'AI not selected' ? 'V' : aiModel?.short || aiName.slice(0,1)}</i></span>
+                      <span className="vv-vault-card-top"><span className="vv-vault-status"><i/> PRIVATE VAULT</span><ArrowUpRight size={16}/></span>
+                      <strong className="vv-vault-card-title">{vault.title}</strong>
+                      <span className="vv-vault-card-description">{vault.description || 'A dedicated space for your AI work and saved context.'}</span>
+                      <span className="vv-vault-card-footer"><span>{aiName}</span><span>Updated {new Date(vault.updated_at || vault.created_at).toLocaleDateString()}</span></span>
+                    </button>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="vv-vaults-empty">
+                <div className="vv-vault-empty-art" aria-hidden="true"><span/><span/><span/><i/></div>
+                <span className="vv-welcome-label">{vaultSearch ? 'NO MATCHES FOUND' : 'A SPACE FOR EVERY IDEA'}</span>
+                <h2>{vaultSearch ? 'No vault matches that search' : 'Your first vault starts here.'}</h2>
+                <p>{vaultSearch ? 'Try another project name or clear your search.' : 'Choose the AI you are working with, give your project a name, and keep its conversations together.'}</p>
+                {!vaultSearch && <button type="button" className="vv-card-button vv-card-button-primary" onClick={() => openModelPicker('create')}><Plus size={16}/> Create your first vault</button>}
+              </div>
+            )}
           </div>
         )}
 
@@ -752,11 +891,69 @@ function Dashboard({ session, onSignOut }) {
               <h1>{chosenModel.name}</h1>
               <p>{modelIntent === 'handoff' ? 'This AI is selected for your handoff workspace.' : 'This is the AI model selected for your new vault.'}</p>
               <div className="vv-selected-actions">
-                <button type="button" className="vv-card-button vv-card-button-primary" onClick={() => setActivePage('model-picker')}>Change AI model <ArrowUpRight size={16}/></button>
+                {modelIntent === 'create' && <button type="button" className="vv-card-button vv-card-button-primary" onClick={beginVaultCreation}>Create this vault <ArrowUpRight size={16}/></button>}
+                <button type="button" className={modelIntent === 'create' ? 'vv-card-button vv-card-button-secondary' : 'vv-card-button vv-card-button-primary'} onClick={() => setActivePage('model-picker')}>Change AI model <ArrowUpRight size={16}/></button>
                 <button type="button" className="vv-selected-back" onClick={() => goToPage('overview')}>Back to workspace</button>
               </div>
             </div>
             <span className="vv-selected-wordmark">{chosenModel.name}</span>
+          </div>
+        )}
+
+        {activePage === 'vault-create' && chosenModel && (
+          <div className="vv-create-vault-page" style={modelTheme(chosenModel)}>
+            <button type="button" className="vv-back-link" onClick={() => setActivePage('model-selected')}><ArrowLeft size={15}/> BACK TO {chosenModel.name}</button>
+            <div className="vv-create-vault-layout">
+              <div className="vv-create-vault-intro">
+                <span className="vv-selected-eyebrow">NEW PROJECT / PERSONAL MEMORY</span>
+                <div className="vv-selected-monogram">{chosenModel.short}</div>
+                <h1>Create your<br/>vault.</h1>
+                <p>Your conversations with {chosenModel.name} will have a dedicated home. Start with a name that describes the project or idea.</p>
+                <div className="vv-create-model-chip"><span>{chosenModel.short}</span><div><strong>{chosenModel.name}</strong><small>Selected AI workspace</small></div></div>
+              </div>
+              <form className="vv-create-vault-form" onSubmit={createVault}>
+                <span className="vv-welcome-label">VAULT DETAILS</span>
+                <label className="vv-form-field"><span>Vault name</span><input autoFocus maxLength={120} required value={vaultTitle} onChange={event => setVaultTitle(event.target.value)} placeholder="e.g. VibeVault, SurePesa, ROOM..."/></label>
+                <label className="vv-form-field"><span>What are you working on? <small>OPTIONAL</small></span><textarea maxLength={1000} rows={4} value={vaultDescription} onChange={event => setVaultDescription(event.target.value)} placeholder="A short description to help you recognize this project later."/></label>
+                <div className="vv-create-vault-meta"><span><i/> PRIVATE TO YOUR ACCOUNT</span><span>AI · {chosenModel.name}</span></div>
+                {vaultError && <div className="vv-inline-error" role="alert">{vaultError}</div>}
+                <button type="submit" className="vv-card-button vv-card-button-primary vv-create-submit" disabled={savingVault || !vaultTitle.trim()}>{savingVault ? 'Creating vault...' : 'Create vault'} <ArrowUpRight size={16}/></button>
+                <button type="button" className="vv-selected-back vv-create-cancel" onClick={() => setActivePage('model-selected')}>Cancel</button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {activePage === 'vault-detail' && selectedVault && (
+          <div className="vv-vault-detail-page">
+            <button type="button" className="vv-back-link" onClick={() => goToPage('vaults')}><ArrowLeft size={15}/> BACK TO MY VAULTS</button>
+            <div className="vv-vault-detail-heading">
+              <div className="vv-vault-detail-symbol" style={chosenModel ? modelTheme(chosenModel) : undefined}><FolderKanban size={25}/></div>
+              <div><span className="vv-welcome-label">YOUR PRIVATE VAULT</span><h1>{selectedVault.title}</h1><p>{selectedVault.description || 'A dedicated space for your conversations and project context.'}</p></div>
+              <span className="vv-vault-ai-badge">{selectedVaultAI}</span>
+            </div>
+            <div className="vv-vault-detail-section-head"><div><span className="vv-welcome-label">PROJECT MEMORY</span><h2>Conversations</h2></div><span>{vaultConversations.length} SAVED THREADS</span></div>
+            {vaultError && <div className="vv-inline-error" role="alert">{vaultError}</div>}
+            {vaultConversationsLoading ? (
+              <div className="vv-vaults-loading"><span className="vv-loading-orbit"/><span>Opening your vault...</span></div>
+            ) : vaultConversations.length ? (
+              <div className="vv-thread-list">
+                {vaultConversations.map(conversation => (
+                  <article className="vv-thread-card" key={conversation.id}>
+                    <span className="vv-thread-icon"><Archive size={17}/></span>
+                    <div><strong>{conversation.title}</strong><small>{conversation.source_ai} · {new Date(conversation.created_at).toLocaleDateString()}</small></div>
+                    <span className="vv-thread-arrow"><ChevronRight size={17}/></span>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="vv-vault-no-threads">
+                <div className="vv-thread-empty-art" aria-hidden="true"><span/><span/><i/></div>
+                <span className="vv-welcome-label">READY FOR YOUR FIRST THREAD</span>
+                <h2>Your project memory starts here.</h2>
+                <p>When you save or import conversations for this project, they will appear in this space.</p>
+              </div>
+            )}
           </div>
         )}
       </section>
