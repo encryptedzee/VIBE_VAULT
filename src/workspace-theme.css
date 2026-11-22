@@ -180,3 +180,27 @@
 @media(prefers-reduced-motion:reduce) {
   .vv-workspace-shell * { scroll-behavior:auto!important;transition:none!important; }
 }
+
+.vv-workspace-shell.vv-model-active {
+  background:
+    radial-gradient(ellipse at 78% 42%,var(--model-glow),transparent 42%),
+    radial-gradient(ellipse at 10% 95%,color-mix(in srgb,var(--model-second) 17%,transparent),transparent 40%),
+    #080a0f;
+}
+.vv-workspace-shell.vv-model-active .vv-sidebar {
+  border-right-color:color-mix(in srgb,var(--model-accent) 24%,rgba(151,174,210,.16));
+  background:linear-gradient(180deg,color-mix(in srgb,var(--model-second) 12%,#0b0f18),#080b12);
+}
+.vv-workspace-shell.vv-model-active .vv-sidebar-brand .brand-mark {
+  border-color:color-mix(in srgb,var(--model-accent) 52%,transparent);
+  box-shadow:0 0 22px var(--model-glow);
+}
+.vv-workspace-shell.vv-model-active .vv-nav-item.active {
+  border-color:color-mix(in srgb,var(--model-accent) 34%,transparent);
+  background:linear-gradient(105deg,color-mix(in srgb,var(--model-second) 19%,transparent),color-mix(in srgb,var(--model-accent) 7%,transparent));
+  box-shadow:inset 2px 0 var(--model-accent),0 7px 20px rgba(0,0,0,.12);
+}
+.vv-workspace-shell.vv-model-active .vv-nav-item.active .vv-nav-icon {
+  border-color:color-mix(in srgb,var(--model-accent) 40%,transparent);
+  color:var(--model-accent);
+}
