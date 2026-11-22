@@ -466,10 +466,30 @@ function RichDocumentBody({ text }) {
     })
   })}</div>
 }
-function Dashboard({ session }) {
+function Dashboard({ session, onSignOut }) {
   const user = session.user
   const fallbackName = user.user_metadata?.display_name || user.email?.split('@')[0] || 'there'
   const [displayName, setDisplayName] = useState(fallbackName)
+  const [activePage, setActivePage] = useState('overview')
+  const [modelSearch, setModelSearch] = useState('')
+  const [activeModelIndex, setActiveModelIndex] = useState(0)
+  const [modelIntent, setModelIntent] = useState('create')
+  const [chosenModel, setChosenModel] = useState(null)
+  const touchStartX = useRef(null)
+
+  const aiModels = [
+    { name: 'Claude', short: 'C', descriptor: 'Anthropic', accent: '#e8a16d', second: '#9b553a', glow: 'rgba(232,161,109,.30)', note: 'Thoughtful reasoning and long-form work' },
+    { name: 'ChatGPT', short: 'G', descriptor: 'OpenAI', accent: '#56d6a2', second: '#167e72', glow: 'rgba(86,214,162,.30)', note: 'A versatile AI workspace' },
+    { name: 'Gemini', short: 'G', descriptor: 'Google', accent: '#78a9ff', second: '#8668ee', glow: 'rgba(120,169,255,.34)', note: 'Multimodal research and creation' },
+    { name: 'Cursor', short: 'Cu', descriptor: 'Cursor', accent: '#c4d0e4', second: '#53657f', glow: 'rgba(196,208,228,.24)', note: 'AI-assisted coding environment' },
+    { name: 'Windsurf', short: 'W', descriptor: 'Codeium', accent: '#63d6e5', second: '#277eae', glow: 'rgba(99,214,229,.30)', note: 'Agentic development workspace' },
+    { name: 'Perplexity', short: 'P', descriptor: 'Perplexity AI', accent: '#70d3d7', second: '#287c9c', glow: 'rgba(112,211,215,.30)', note: 'Search-led research and answers' },
+    { name: 'DeepSeek', short: 'D', descriptor: 'DeepSeek', accent: '#83a8ff', second: '#3452c4', glow: 'rgba(131,168,255,.30)', note: 'Technical reasoning and exploration' },
+    { name: 'Lovable', short: 'L', descriptor: 'Lovable', accent: '#f08cb7', second: '#9e477c', glow: 'rgba(240,140,183,.30)', note: 'Prompt-to-product building' },
+    { name: 'Base44', short: 'B', descriptor: 'Base44', accent: '#b59cff', second: '#6950c4', glow: 'rgba(181,156,255,.30)', note: 'AI-powered app building' },
+    { name: 'Trae', short: 'T', descriptor: 'Trae', accent: '#f3ad72', second: '#a85e36', glow: 'rgba(243,173,114,.30)', note: 'AI development environment' },
+    { name: 'Qoder', short: 'Q', descriptor: 'Qoder', accent: '#91a8ff', second: '#4a5db5', glow: 'rgba(145,168,255,.30)', note: 'Agentic software development' }
+  ]
 
   useEffect(() => {
     let active = true
@@ -492,27 +512,238 @@ function Dashboard({ session }) {
     return () => { active = false }
   }, [user.id])
 
+  useEffect(() => { setActiveModelIndex(0) }, [modelSearch])
+
   const firstName = (displayName || fallbackName).trim().split(/\s+/)[0] || 'there'
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening'
+  const filteredModels = aiModels.filter(model => (model.name + ' ' + model.descriptor).toLowerCase().includes(modelSearch.trim().toLowerCase()))
+  const activeModel = filteredModels[activeModelIndex] || filteredModels[0] || null
+  const modelTheme = model => ({
+    '--model-accent': model.accent,
+    '--model-second': model.second,
+    '--model-glow': model.glow
+  })
+  const openModelPicker = intent => {
+    setModelIntent(intent)
+    setModelSearch('')
+    setActiveModelIndex(0)
+    setActivePage('model-picker')
+  }
+  const moveModel = direction => {
+    if (!filteredModels.length) return
+    setActiveModelIndex(index => (index + direction + filteredModels.length) % filteredModels.length)
+  }
+  const chooseModel = () => {
+    if (!activeModel) return
+    setChosenModel(activeModel)
+    setActivePage('model-selected')
+  }
+  const goToPage = page => {
+    setActivePage(page)
+    if (page !== 'model-picker') setModelSearch('')
+  }
+  const navItems = [
+    { id: 'overview', label: 'Overview', hint: 'Your workspace', icon: LayoutDashboard, mark: '01' },
+    { id: 'vaults', label: 'My Vaults', hint: 'Your saved spaces', icon: Archive, mark: '02' },
+    { id: 'handoff', label: 'Handoff Vault', hint: 'Choose your next AI', icon: Workflow, mark: '03' }
+  ]
 
   return (
     <main className="vv-workspace-shell">
-      <aside className="vv-sidebar" aria-label="VibeVault sidebar">
-        <div className="vv-sidebar-brand"><Brand /></div>
+      <aside className="vv-sidebar" aria-label="VibeVault navigation">
+        <div className="vv-sidebar-brand">
+          <Brand />
+          <span className="vv-sidebar-brand-caption">YOUR AI MEMORY SPACE</span>
+        </div>
+
+        <div className="vv-sidebar-section-label">WORKSPACE</div>
+        <nav className="vv-sidebar-nav">
+          {navItems.map(item => {
+            const Icon = item.icon
+            const isActive = activePage === item.id ||
+              (item.id === 'handoff' && ['model-picker', 'model-selected'].includes(activePage))
+            return (
+              <button
+                type="button"
+                key={item.id}
+                className={'vv-nav-item' + (isActive ? ' active' : '')}
+                aria-current={isActive ? 'page' : undefined}
+                onClick={() => item.id === 'handoff' ? openModelPicker('handoff') : goToPage(item.id)}
+              >
+                <span className={'vv-nav-icon vv-nav-icon-' + item.id}><Icon size={17}/></span>
+                <span className="vv-nav-copy"><strong>{item.label}</strong><small>{item.hint}</small></span>
+                <span className="vv-nav-mark">{item.mark}</span>
+              </button>
+            )
+          })}
+        </nav>
+
+        <div className="vv-sidebar-illustration" aria-hidden="true">
+          <span className="vv-side-orbit vv-side-orbit-one"/>
+          <span className="vv-side-orbit vv-side-orbit-two"/>
+          <span className="vv-side-card vv-side-card-back"/>
+          <span className="vv-side-card vv-side-card-front"><i/><i/><i/></span>
+          <span className="vv-side-glow"/>
+        </div>
         <div className="vv-sidebar-account">
           <span className="vv-sidebar-avatar">{firstName.slice(0, 1).toUpperCase()}</span>
           <span className="vv-sidebar-account-copy">
             <strong>{displayName || fallbackName}</strong>
             <small>{user.email || 'VibeVault account'}</small>
           </span>
+          <button className="vv-signout-button" type="button" onClick={onSignOut} title="Sign out" aria-label="Sign out"><LogOut size={15}/></button>
         </div>
       </aside>
+
       <section className="vv-dashboard-canvas" aria-label="Workspace">
-        <div className="vv-welcome-block">
-          <span className="vv-welcome-label">VIBEVAULT WORKSPACE</span>
-          <h1>Good {greeting}, {firstName}</h1>
-        </div>
+        {activePage === 'overview' && (
+          <div className="vv-overview-page">
+            <div className="vv-welcome-block">
+              <span className="vv-welcome-label">YOUR PERSONAL AI SPACE</span>
+              <h1>Good {greeting}, {firstName}</h1>
+              <p>Your context has a home. Choose where you want to begin.</p>
+            </div>
+
+            <div className="vv-action-grid">
+              <article className="vv-action-card vv-create-card">
+                <div className="vv-action-card-top"><span>01 / CREATE</span><span className="vv-action-pill">START HERE</span></div>
+                <div className="vv-card-illustration vv-create-illustration" aria-hidden="true">
+                  <span className="vv-create-orbit"/>
+                  <span className="vv-create-sheet vv-sheet-one"/>
+                  <span className="vv-create-sheet vv-sheet-two"/>
+                  <span className="vv-create-sheet vv-sheet-three"/>
+                  <span className="vv-create-plus">+</span>
+                </div>
+                <div className="vv-action-card-copy">
+                  <h2>Create a Vault</h2>
+                  <p>Choose the AI you are working with before you start saving its conversations.</p>
+                  <button type="button" className="vv-card-button vv-card-button-primary" onClick={() => openModelPicker('create')}>Create a Vault <ArrowUpRight size={16}/></button>
+                </div>
+              </article>
+
+              <article className="vv-action-card vv-handoff-card">
+                <div className="vv-action-card-top"><span>02 / CONTINUE</span><span className="vv-action-pill vv-action-pill-cyan">AI TRANSFER</span></div>
+                <div className="vv-card-illustration vv-handoff-illustration" aria-hidden="true">
+                  <span className="vv-handoff-orbit"/>
+                  <span className="vv-handoff-node vv-node-one"/>
+                  <span className="vv-handoff-node vv-node-two"/>
+                  <span className="vv-handoff-node vv-node-three"/>
+                  <span className="vv-handoff-path"/>
+                </div>
+                <div className="vv-action-card-copy">
+                  <h2>Handoff Vault</h2>
+                  <p>Choose the AI you are moving your work to. Its identity will shape your handoff space.</p>
+                  <button type="button" className="vv-card-button vv-card-button-secondary" onClick={() => openModelPicker('handoff')}>Choose an AI <ArrowUpRight size={16}/></button>
+                </div>
+              </article>
+            </div>
+          </div>
+        )}
+
+        {activePage === 'vaults' && (
+          <div className="vv-empty-page">
+            <div className="vv-empty-illustration vv-empty-vault-art" aria-hidden="true"><span/><span/><span/><i>+</i></div>
+            <span className="vv-welcome-label">YOUR COLLECTION</span>
+            <h1>My Vaults</h1>
+            <p>Your saved AI conversations and context spaces will appear here.</p>
+            <button type="button" className="vv-card-button vv-card-button-primary" onClick={() => openModelPicker('create')}>Create a Vault <ArrowUpRight size={16}/></button>
+          </div>
+        )}
+
+        {activePage === 'model-picker' && (
+          <div className="vv-ai-picker" style={activeModel ? modelTheme(activeModel) : undefined}>
+            <div className="vv-picker-heading">
+              <button type="button" className="vv-back-link" onClick={() => goToPage('overview')}><ArrowLeft size={15}/> BACK TO WORKSPACE</button>
+              <span className="vv-welcome-label">{modelIntent === 'handoff' ? 'HANDOFF VAULT / STEP 01' : 'NEW VAULT / STEP 01'}</span>
+              <h1>Which AI are you using?</h1>
+              <p>Search for your AI model or swipe through the cards. Select the one you are working with right now.</p>
+              <label className="vv-model-search">
+                <Search size={17}/>
+                <input value={modelSearch} onChange={event => setModelSearch(event.target.value)} placeholder="Search AI models..." aria-label="Search AI models"/>
+                {modelSearch && <button type="button" onClick={() => setModelSearch('')} aria-label="Clear search"><X size={15}/></button>}
+              </label>
+            </div>
+
+            {activeModel ? (
+              <>
+                <div className="vv-ai-stage" style={modelTheme(activeModel)}>
+                  <div className="vv-ai-stage-art" aria-hidden="true"><span/><span/><span/><i/></div>
+                  <div className="vv-ai-stage-copy">
+                    <span className="vv-ai-stage-overline">{activeModel.descriptor.toUpperCase()} / AI MODEL</span>
+                    <div className="vv-ai-monogram">{activeModel.short}</div>
+                    <h2>{activeModel.name}</h2>
+                    <p>{activeModel.note}</p>
+                  </div>
+                  <div className="vv-ai-stage-index">{String(activeModelIndex + 1).padStart(2, '0')} <i/> {String(filteredModels.length).padStart(2, '0')}</div>
+                </div>
+
+                <div className="vv-model-carousel-header">
+                  <span>SELECT YOUR MODEL</span>
+                  <div className="vv-carousel-controls">
+                    <button type="button" onClick={() => moveModel(-1)} disabled={filteredModels.length < 2} aria-label="Previous AI model"><ArrowLeft size={16}/></button>
+                    <button type="button" onClick={() => moveModel(1)} disabled={filteredModels.length < 2} aria-label="Next AI model"><ArrowRight size={16}/></button>
+                  </div>
+                </div>
+                <div
+                  className="vv-model-carousel"
+                  onTouchStart={event => { touchStartX.current = event.touches[0]?.clientX ?? null }}
+                  onTouchEnd={event => {
+                    if (touchStartX.current !== null) {
+                      const delta = (event.changedTouches[0]?.clientX ?? touchStartX.current) - touchStartX.current
+                      if (Math.abs(delta) > 40) moveModel(delta < 0 ? 1 : -1)
+                    }
+                    touchStartX.current = null
+                  }}
+                  onKeyDown={event => {
+                    if (event.key === 'ArrowRight') { event.preventDefault(); moveModel(1) }
+                    if (event.key === 'ArrowLeft') { event.preventDefault(); moveModel(-1) }
+                  }}
+                  tabIndex={0}
+                  aria-label="Swipe or use arrow keys to choose an AI model"
+                >
+                  {filteredModels.map((model, index) => (
+                    <button
+                      type="button"
+                      key={model.name}
+                      className={'vv-model-card' + (index === activeModelIndex ? ' active' : '')}
+                      style={modelTheme(model)}
+                      onClick={() => setActiveModelIndex(index)}
+                      aria-pressed={index === activeModelIndex}
+                    >
+                      <span className="vv-model-card-symbol">{model.short}</span>
+                      <span className="vv-model-card-copy"><strong>{model.name}</strong><small>{model.descriptor}</small></span>
+                      <span className="vv-model-card-dot"/>
+                    </button>
+                  ))}
+                </div>
+                <div className="vv-picker-footer">
+                  <span>Swipe the cards to preview each AI's workspace theme.</span>
+                  <button type="button" className="vv-card-button vv-card-button-primary" onClick={chooseModel}>Use {activeModel.name} <ArrowUpRight size={16}/></button>
+                </div>
+              </>
+            ) : (
+              <div className="vv-no-models"><strong>No AI model found</strong><span>Try a different name.</span></div>
+            )}
+          </div>
+        )}
+
+        {activePage === 'model-selected' && chosenModel && (
+          <div className="vv-ai-selected" style={modelTheme(chosenModel)}>
+            <div className="vv-selected-art" aria-hidden="true"><span/><span/><span/><i/></div>
+            <div className="vv-selected-copy">
+              <span className="vv-selected-eyebrow">{modelIntent === 'handoff' ? 'HANDOFF VAULT / AI SELECTED' : 'NEW VAULT / AI SELECTED'}</span>
+              <div className="vv-selected-monogram">{chosenModel.short}</div>
+              <h1>{chosenModel.name}</h1>
+              <p>{modelIntent === 'handoff' ? 'This AI is selected for your handoff workspace.' : 'This is the AI model selected for your new vault.'}</p>
+              <div className="vv-selected-actions">
+                <button type="button" className="vv-card-button vv-card-button-primary" onClick={() => setActivePage('model-picker')}>Change AI model <ArrowUpRight size={16}/></button>
+                <button type="button" className="vv-selected-back" onClick={() => goToPage('overview')}>Back to workspace</button>
+              </div>
+            </div>
+            <span className="vv-selected-wordmark">{chosenModel.name}</span>
+          </div>
+        )}
       </section>
     </main>
   )
