@@ -550,7 +550,7 @@ function Dashboard({ session, initialPlan, onSignOut }) {
   const [sessionSummaries, setSessionSummaries] = useState([])
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [inspectorOpen, setInspectorOpen] = useState(false)
-  const [darkMode, setDarkMode] = useState(() => { try { return window.localStorage.getItem('vibevault-workspace-theme') === 'dark' } catch { return false } })
+  const [darkMode, setDarkMode] = useState(() => { try { return window.localStorage.getItem('vibevault-workspace-theme') !== 'light' } catch { return true } })
   const [mobileAgentVisible, setMobileAgentVisible] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -1086,7 +1086,7 @@ function Dashboard({ session, initialPlan, onSignOut }) {
         <span className="ide-top-divider"/>
         <div className="ide-workspace-name"><small>WORKSPACE</small><strong>{activeProject?.title || 'No project selected'}</strong></div>
         <span className="ide-top-status"><span className="status-pulse"/> {busy ? 'SYNCING' : 'SAVED'}</span>
-        {IS_FEATURE_PREVIEW_HOST && <span className="ide-feature-preview-badge" title="This is the green-and-white workspace redesign preview">FEATURE PREVIEW · GREEN WORKSPACE</span>}
+        {IS_FEATURE_PREVIEW_HOST && <span className="ide-feature-preview-badge" title="This is the green-and-white workspace redesign preview">FEATURE PREVIEW · VIBEVAULT</span>}
       </div>
       <div className="ide-topbar-right">
         <button className="ide-global-search-trigger" onClick={() => setSearchOpen(true)} aria-label="Search VibeVault"><Search size={15}/><span>Search projects, conversations, decisions…</span><kbd>Ctrl K</kbd></button>
@@ -1154,6 +1154,10 @@ function Dashboard({ session, initialPlan, onSignOut }) {
         </div>
         <div className="ide-breadcrumb"><span>VIBEVAULT</span><ChevronRight size={12}/><span>{activeProject?.title || 'WORKSPACE'}</span><ChevronRight size={12}/><strong>{activePane === 'conversation' ? activeConversation?.title || 'Conversation' : navItems.find(item => item.id === activePane)?.label || 'Overview'}</strong><span className="ide-breadcrumb-spacer"/><span className="ide-branch"><GitBranch size={12}/> PROJECT CONTEXT</span></div>
         <div className="ide-editor-scroll">
+          {activePane === 'overview' && !busy && <section className="ide-welcome-heading" aria-label="Personalized welcome">
+            <div><span className="ide-kicker">YOUR VIBEVAULT</span><h1>Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, {((profile?.display_name || user.user_metadata?.display_name || user.email?.split('@')[0] || 'there').trim().split(/\\s+/)[0])}.</h1><p>Your AI workspace is ready. Pick up where you left off.</p></div>
+            <span className="ide-welcome-status"><i/> PRIVATE WORKSPACE</span>
+          </section>}
           {busy && <div className="ide-loading"><span className="ide-loading-bar"/><p>SYNCING PROJECT FILES…</p></div>}
           {!activeProject && !busy && !['projects','inbox','preferences','connections','subscription','settings'].includes(activePane) && <div className="ide-empty-workspace"><div className="ide-empty-icon"><FolderKanban size={27}/></div><span className="ide-kicker">VIBEVAULT WORKSPACE</span><h1>Create your first project.</h1><p>Projects keep conversations, decisions and handoffs together. Import your existing AI work and continue from one place.</p><Button onClick={requestCreateProject}><Plus size={15}/> CREATE PROJECT</Button></div>}
 
