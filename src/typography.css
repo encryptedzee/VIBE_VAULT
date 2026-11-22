@@ -1,0 +1,60 @@
+/* Shared typography system: one calm, readable family across landing and workspace. */
+:root {
+  --font-display: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-body);
+  font-optical-sizing: auto;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+html,
+body,
+button,
+input,
+textarea,
+select {
+  font-family: var(--font-body);
+}
+
+.display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-transform: none;
+  letter-spacing: -0.035em;
+  line-height: 1.04;
+}
+
+.vv-workspace-shell,
+.vv-workspace-shell button,
+.vv-workspace-shell input,
+.vv-workspace-shell textarea,
+.vv-workspace-shell select {
+  font-family: var(--font-body);
+}
+
+.vv-welcome-block h1,
+.vv-empty-page h1,
+.vv-picker-heading h1,
+.vv-action-card-copy h2,
+.vv-sidebar-brand .brand-word {
+  font-family: var(--font-display);
+  letter-spacing: -0.035em;
+}
+
+.vv-nav-copy strong,
+.vv-sidebar-account-copy strong,
+.vv-action-card-copy h2 {
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  body {
+    font-size: 14px;
+  }
+
+  .display {
+    letter-spacing: -0.03em;
+    line-height: 1.08;
+  }
+}
