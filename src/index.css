@@ -998,7 +998,7 @@ button:disabled { cursor: not-allowed !important; opacity: .42; transform: none 
    ────────────────────────────────────────────────────────────────────────── */
 :root {
   --font-display: "Space Grotesk", "Manrope", ui-sans-serif, system-ui, sans-serif;
-  --font-body: "Manrope", ui-sans-serif, ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Manrope", ui-sans-serif, system-ui, sans-serif;
 }
 .ide-shell {
   background:#111318;
