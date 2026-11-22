@@ -1050,3 +1050,59 @@
 .ide-shell .ide-feature-preview-badge { letter-spacing:.08em; }
 @media(max-width:650px) { .ide-shell .ide-welcome-heading { align-items:flex-start; flex-direction:column; gap:12px; } }
 @media(prefers-reduced-motion:reduce) { .ide-shell * { scroll-behavior:auto!important; } }
+
+
+/* Keep the VibeVault palette consistent when the saved dark-mode class is active. */
+.ide-shell.theme-dark { color:var(--vv-ink); background:#080a0f; }
+.ide-shell.theme-dark .ide-explorer { background:#0b0e15 !important; border-right-color:#202735 !important; }
+.ide-shell.theme-dark .ide-explorer-project-label,
+.ide-shell.theme-dark .ide-nav-group-label,
+.ide-shell.theme-dark .conversation-tree-head { color:#77859a !important; }
+.ide-shell.theme-dark .ide-sidebar-search { background:#0e141e !important; border-color:#283448 !important; }
+.ide-shell.theme-dark .ide-sidebar-search input { color:#f1f5fb !important; }
+.ide-shell.theme-dark .ide-sidebar-search input::placeholder { color:#6f7c90 !important; }
+.ide-shell.theme-dark .ide-project-node,
+.ide-shell.theme-dark .ide-nav-item,
+.ide-shell.theme-dark .ide-file-node { color:#aab6c8 !important; }
+.ide-shell.theme-dark .ide-project-node-copy strong,
+.ide-shell.theme-dark .ide-file-node span,
+.ide-shell.theme-dark .ide-account-row strong { color:#f1f5fb !important; }
+.ide-shell.theme-dark .ide-project-node-copy small,
+.ide-shell.theme-dark .ide-account-row small { color:#8996aa !important; }
+.ide-shell.theme-dark .ide-project-node:hover,
+.ide-shell.theme-dark .ide-nav-item:hover,
+.ide-shell.theme-dark .ide-file-node:hover { background:#151c29 !important; color:#fff !important; }
+.ide-shell.theme-dark .ide-project-node.selected,
+.ide-shell.theme-dark .ide-nav-item.active,
+.ide-shell.theme-dark .ide-file-node.selected { color:#fff !important; background:linear-gradient(100deg,rgba(30,91,255,.2),rgba(85,216,242,.07)) !important; border-color:rgba(85,216,242,.2) !important; box-shadow:inset 3px 0 #1e5bff !important; }
+.ide-shell.theme-dark .ide-nav-item.active>svg { color:#55d8f2 !important; }
+.ide-shell.theme-dark .ide-project-count,
+.ide-shell.theme-dark .ide-tree-count,
+.ide-shell.theme-dark .ide-nav-item small { background:#1a2434 !important; color:#a8c4ff !important; }
+.ide-shell.theme-dark .ide-usage-card { background:linear-gradient(115deg,rgba(30,91,255,.14),rgba(85,216,242,.06)) !important; border-color:rgba(85,216,242,.18) !important; }
+.ide-shell.theme-dark .ide-usage-card span,.ide-shell.theme-dark .ide-usage-card strong { color:#c2d0e4 !important; }
+.ide-shell.theme-dark .ide-editor-tabs,
+.ide-shell.theme-dark .ide-breadcrumb { background:#0b0f17; border-color:#202735; color:#8d9bb0; }
+.ide-shell.theme-dark .ide-editor-tabs>button.active { background:#101722; color:#fff; border-bottom-color:#1e5bff; }
+.ide-shell.theme-dark .ide-content-panel,
+.ide-shell.theme-dark .ide-project-launchpad,
+.ide-shell.theme-dark .ide-panel-empty,
+.ide-shell.theme-dark .ide-project-card,
+.ide-shell.theme-dark .ide-settings-card { background:#101722; border-color:#273246; color:#e8eef8; }
+.ide-shell.theme-dark .ide-page h1,
+.ide-shell.theme-dark .ide-page h2,
+.ide-shell.theme-dark .ide-page h3 { color:#f1f5fb; }
+.ide-shell.theme-dark .ide-page p { color:#9aa6b8; }
+.ide-shell.theme-dark .ide-launchpad-copy>strong,
+.ide-shell.theme-dark .ide-resource-copy strong,
+.ide-shell.theme-dark .ide-panel-heading h2 { color:#f1f5fb; }
+.ide-shell.theme-dark .ide-launchpad-copy>small,
+.ide-shell.theme-dark .ide-resource-copy small,
+.ide-shell.theme-dark .ide-resource-copy em { color:#8d9bb0; }
+.ide-shell.theme-dark .ide-launchpad-actions>button,
+.ide-shell.theme-dark .ide-workspace-conversation-row { background:#0c121c; border-color:#273246; color:#dce6f5; }
+.ide-shell.theme-dark .ide-launchpad-actions>button strong { color:#eaf1fb; }
+.ide-shell.theme-dark .ide-launchpad-actions>button small { color:#8998ad; }
+.ide-shell.theme-dark .ide-feature-preview-badge { background:rgba(30,91,255,.13); border-color:rgba(85,216,242,.24); color:#9bc9ff; }
+.ide-shell.theme-dark .btn-ghost { background:transparent; border-color:#344156; color:#c2cee0; }
+.ide-shell.theme-dark .btn-ghost:hover { border-color:#55d8f2; color:#55d8f2; }
