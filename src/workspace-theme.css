@@ -604,3 +604,248 @@
   -webkit-line-clamp:3; line-clamp:3; max-height:4.8em;
 }
 .ide-shell .ide-page-heading p, .ide-shell .ide-document-heading p { overflow-wrap:anywhere; }
+
+
+/* Studio layout: keep the work canvas first, secondary information off the main path. */
+.ide-shell .ide-studio-overview { max-width:1600px; padding-top:25px; }
+.ide-shell .ide-studio-heading { align-items:center; margin-bottom:17px; }
+.ide-shell .ide-studio-project-title { min-width:0; }
+.ide-shell .ide-studio-project-title h1 {
+  margin:3px 0 8px; font-size:clamp(29px,2.6vw,37px); letter-spacing:-.055em;
+}
+.ide-shell .ide-studio-project-meta { display:flex; align-items:center; flex-wrap:wrap; gap:7px; }
+.ide-shell .ide-studio-project-meta > span {
+  padding:4px 8px; border:1px solid rgba(128,120,170,.13); border-radius:8px;
+  background:rgba(255,255,255,.55); color:#85809f; font-size:8px; font-weight:700;
+}
+.ide-shell .ide-studio-project-meta button {
+  display:inline-flex; align-items:center; gap:5px; border:0; background:transparent;
+  color:#7863d4; font-size:8px; font-weight:800; letter-spacing:.06em; padding:4px 2px;
+}
+.ide-shell .ide-studio-project-meta button:hover { color:#37aebb; }
+.ide-shell .ide-studio-heading .ide-heading-actions { gap:7px; }
+.ide-shell .ide-studio-heading .btn-solid, .ide-shell .ide-studio-heading .btn-ghost {
+  min-height:36px; padding:0 12px; font-size:9px;
+}
+.ide-shell .ide-studio-hero { min-height:156px; padding:22px 27px; margin-bottom:17px; border-radius:23px; }
+.ide-shell .ide-studio-hero .ide-launchpad-copy { gap:8px; }
+.ide-shell .ide-studio-hero .ide-launchpad-copy strong { font-size:clamp(23px,2.1vw,29px); max-width:390px; }
+.ide-shell .ide-studio-hero .ide-launchpad-copy small { max-width:420px; }
+.ide-shell .ide-studio-hero .ide-launchpad-actions button { min-height:66px; }
+.ide-shell .ide-conversation-workspace { min-height:330px; padding:21px 23px; border-radius:22px; }
+.ide-shell .ide-conversation-workspace .ide-panel-heading { margin-bottom:10px; }
+.ide-shell .ide-conversation-workspace .ide-panel-heading h2 { display:flex; align-items:center; gap:9px; }
+.ide-shell .ide-conversation-workspace .ide-panel-heading h2 small {
+  padding:3px 7px; border-radius:999px; background:#f0edfb; color:#8072b9; font-size:9px;
+}
+.ide-shell .ide-workspace-conversation-list {
+  max-height:min(48vh,430px); overflow:auto; overscroll-behavior:contain;
+  border-top:1px solid rgba(132,125,170,.10);
+  scrollbar-width:thin; scrollbar-color:#d9d5e8 transparent;
+}
+.ide-shell .ide-workspace-conversation-row {
+  width:100%; min-height:64px; display:flex; align-items:center; gap:13px; padding:10px 8px;
+  border:0; border-bottom:1px solid rgba(132,125,170,.10); border-radius:0;
+  background:transparent; text-align:left;
+}
+.ide-shell .ide-workspace-conversation-row:hover { padding-left:13px; background:rgba(118,88,235,.045); }
+.ide-shell .ide-workspace-conversation-icon {
+  width:39px; height:39px; flex:none; display:grid; place-items:center; border-radius:13px;
+  background:linear-gradient(140deg,#eee9ff,#dff8fa); color:#7459df;
+}
+.ide-shell .ide-workspace-conversation-copy { min-width:0; flex:1; display:flex; flex-direction:column; gap:4px; }
+.ide-shell .ide-workspace-conversation-copy strong {
+  overflow:hidden; color:#34314b; font-size:11px; font-weight:800; text-overflow:ellipsis; white-space:nowrap;
+}
+.ide-shell .ide-workspace-conversation-copy small { color:#9793a9; font-size:9px; }
+.ide-shell .ide-workspace-conversation-trailing { display:flex; align-items:center; gap:9px; color:#aaa5bd; }
+.ide-shell .ide-workspace-conversation-trailing em { padding:4px 7px; border-radius:999px; background:#e9f8f5; color:#39a68f; font-size:7px; font-style:normal; font-weight:800; }
+.ide-shell .ide-workspace-view-all {
+  display:inline-flex; align-items:center; gap:7px; margin-top:12px; padding:7px 2px;
+  border:0; background:transparent; color:#7861d7; font-size:8px; font-weight:800; letter-spacing:.07em;
+}
+.ide-shell .ide-workspace-empty {
+  min-height:226px; display:flex; align-items:center; justify-content:center; flex-direction:column;
+  gap:9px; padding:25px; text-align:center;
+}
+.ide-shell .ide-workspace-empty-icon {
+  width:48px; height:48px; display:grid; place-items:center; border-radius:16px;
+  background:linear-gradient(140deg,#eee9ff,#def8f7); color:#7259dc;
+}
+.ide-shell .ide-workspace-empty strong { color:#37334f; font-size:14px; font-weight:800; }
+.ide-shell .ide-workspace-empty p { max-width:410px; margin:0; color:#9995aa; font-size:10px; line-height:1.65; }
+.ide-shell .ide-workspace-empty .btn-solid { margin-top:5px; }
+
+/* Dark mode — full canvas, glass surfaces, readable controls and persistent preference. */
+.ide-shell.theme-dark {
+  --vv-bg:#11101b; --vv-bg-soft:#171526; --vv-panel:rgba(31,29,48,.88);
+  --vv-panel-solid:#201e32; --vv-ink:#f4f1ff; --vv-muted:#aaa5c1; --vv-soft:#827d9d;
+  --vv-border:rgba(220,213,255,.11);
+  background:
+    radial-gradient(ellipse at 76% 0%,rgba(111,80,193,.20),transparent 37%),
+    radial-gradient(ellipse at 1% 88%,rgba(37,150,166,.12),transparent 34%),
+    #11101b;
+  color:#f2efff; color-scheme:dark;
+}
+.ide-shell.theme-dark .ide-topbar {
+  background:rgba(23,21,39,.88); border-bottom-color:rgba(221,214,255,.10);
+  box-shadow:0 8px 28px rgba(0,0,0,.20);
+}
+.ide-shell.theme-dark .ide-workspace-name strong,
+.ide-shell.theme-dark .ide-agent-header strong { color:#f1edff; }
+.ide-shell.theme-dark .ide-workspace-name small,
+.ide-shell.theme-dark .ide-top-status { color:#a7a1bf; }
+.ide-shell.theme-dark .ide-global-search-trigger,
+.ide-shell.theme-dark .ide-project-picker,
+.ide-shell.theme-dark .ide-top-icon,
+.ide-shell.theme-dark .ide-layout-control {
+  border-color:rgba(224,216,255,.12); background:rgba(255,255,255,.055); color:#c3bddc;
+}
+.ide-shell.theme-dark .ide-global-search-trigger span,
+.ide-shell.theme-dark .ide-project-picker select { color:#ddd7f4; }
+.ide-shell.theme-dark .ide-global-search-trigger kbd { border-color:rgba(255,255,255,.12); background:rgba(255,255,255,.07); color:#aaa3c2; }
+.ide-shell.theme-dark .ide-top-icon:hover,
+.ide-shell.theme-dark .ide-layout-control:hover { background:rgba(137,111,242,.18); color:#fff; }
+.ide-shell.theme-dark .ide-plan-pill { border-color:rgba(162,137,255,.24); background:rgba(126,98,231,.16); color:#c6b9ff; }
+.ide-shell.theme-dark .ide-workbench { background:transparent; }
+.ide-shell.theme-dark .ide-editor-area { background:transparent; }
+.ide-shell.theme-dark .ide-editor-tabs {
+  border-bottom-color:rgba(220,213,255,.08); background:rgba(25,23,42,.52);
+}
+.ide-shell.theme-dark .ide-editor-tabs > button { color:#aaa4c1; }
+.ide-shell.theme-dark .ide-editor-tabs > button.active {
+  color:#eeeaff; border-color:rgba(183,163,255,.17); background:rgba(255,255,255,.065);
+}
+.ide-shell.theme-dark .ide-editor-tabs > button.ide-tab-action { border-color:rgba(220,213,255,.12); background:rgba(255,255,255,.05); }
+.ide-shell.theme-dark .ide-page-heading h1,
+.ide-shell.theme-dark .ide-document-heading h1,
+.ide-shell.theme-dark .ide-panel-heading h2 { color:#f1edff; }
+.ide-shell.theme-dark .ide-page-heading p,
+.ide-shell.theme-dark .ide-document-heading p { color:#aaa5bf; }
+.ide-shell.theme-dark .ide-kicker { color:#aaa0e5; }
+.ide-shell.theme-dark .ide-studio-project-meta > span { border-color:rgba(220,213,255,.12); background:rgba(255,255,255,.045); color:#b7b0ce; }
+.ide-shell.theme-dark .ide-studio-project-meta button { color:#bbaaff; }
+.ide-shell.theme-dark .ide-content-panel,
+.ide-shell.theme-dark .ide-knowledge-card,
+.ide-shell.theme-dark .ide-project-card,
+.ide-shell.theme-dark .ide-summary-card,
+.ide-shell.theme-dark .ide-decision-card,
+.ide-shell.theme-dark .ide-handoff-card,
+.ide-shell.theme-dark .ide-connection-card,
+.ide-shell.theme-dark .ide-subscription-card,
+.ide-shell.theme-dark .ide-settings-card,
+.ide-shell.theme-dark .ide-preference-summary,
+.ide-shell.theme-dark .ide-inbox-summary {
+  border-color:rgba(222,216,255,.10); background:rgba(31,29,49,.87);
+  box-shadow:0 15px 38px rgba(0,0,0,.18); color:#eeeaff;
+}
+.ide-shell.theme-dark .ide-panel-heading h2,
+.ide-shell.theme-dark .ide-workspace-conversation-copy strong,
+.ide-shell.theme-dark .ide-memory-row strong,
+.ide-shell.theme-dark .ide-overview-record strong,
+.ide-shell.theme-dark .ide-project-card-copy strong,
+.ide-shell.theme-dark .ide-knowledge-card h2,
+.ide-shell.theme-dark .ide-connection-card strong,
+.ide-shell.theme-dark .ide-settings-card strong,
+.ide-shell.theme-dark .ide-decision-card h3 { color:#f0ecff; }
+.ide-shell.theme-dark .ide-panel-heading > button,
+.ide-shell.theme-dark .ide-workspace-view-all { color:#b8a8ff; }
+.ide-shell.theme-dark .ide-workspace-conversation-list { border-top-color:rgba(220,213,255,.09); scrollbar-color:#49435f transparent; }
+.ide-shell.theme-dark .ide-workspace-conversation-row { border-bottom-color:rgba(220,213,255,.085); }
+.ide-shell.theme-dark .ide-workspace-conversation-row:hover { background:rgba(143,115,248,.10); }
+.ide-shell.theme-dark .ide-workspace-conversation-icon,
+.ide-shell.theme-dark .ide-file-icon,
+.ide-shell.theme-dark .ide-memory-icon,
+.ide-shell.theme-dark .ide-connection-icon { background:linear-gradient(140deg,rgba(130,102,235,.24),rgba(61,184,198,.18)); color:#c2b3ff; }
+.ide-shell.theme-dark .ide-workspace-conversation-copy small,
+.ide-shell.theme-dark .ide-connection-card p,
+.ide-shell.theme-dark .ide-connection-card small,
+.ide-shell.theme-dark .ide-memory-row small,
+.ide-shell.theme-dark .ide-project-card-copy small,
+.ide-shell.theme-dark .ide-settings-card small { color:#a39db9; }
+.ide-shell.theme-dark .ide-workspace-empty strong { color:#f0ecff; }
+.ide-shell.theme-dark .ide-workspace-empty p { color:#aaa4bf; }
+.ide-shell.theme-dark .ide-workspace-empty-icon { background:linear-gradient(140deg,rgba(130,102,235,.24),rgba(61,184,198,.18)); color:#c2b3ff; }
+.ide-shell.theme-dark .ide-panel-empty {
+  border-color:rgba(180,163,255,.20);
+  background:linear-gradient(135deg,rgba(118,88,235,.10),rgba(54,181,195,.07));
+}
+.ide-shell.theme-dark .ide-panel-empty strong { color:#e9e3ff; }
+.ide-shell.theme-dark .ide-panel-empty span { color:#aaa4bf; }
+.ide-shell.theme-dark .ide-recent-file,
+.ide-shell.theme-dark .ide-memory-row,
+.ide-shell.theme-dark .ide-overview-record { border-color:rgba(220,213,255,.09); }
+.ide-shell.theme-dark .ide-file-copy strong { color:#eeeaff; }
+.ide-shell.theme-dark .ide-file-copy small,
+.ide-shell.theme-dark .ide-file-copy em { color:#a8a2bc; }
+.ide-shell.theme-dark .ide-project-card-meta { border-top-color:rgba(220,213,255,.09); color:#a8a2be; }
+.ide-shell.theme-dark .ide-project-card-meta button { color:#b8a8ff; }
+.ide-shell.theme-dark .ide-resource-row,
+.ide-shell.theme-dark .ide-inbox-row,
+.ide-shell.theme-dark .ide-provider-card,
+.ide-shell.theme-dark .ide-usage-grid > div {
+  border-color:rgba(220,213,255,.10); background:rgba(31,29,49,.88);
+}
+.ide-shell.theme-dark .ide-resource-copy strong,
+.ide-shell.theme-dark .ide-inbox-row strong { color:#f0ecff; }
+.ide-shell.theme-dark .ide-resource-copy small,
+.ide-shell.theme-dark .ide-resource-copy em,
+.ide-shell.theme-dark .ide-inbox-row p { color:#a8a2bc; }
+.ide-shell.theme-dark .ide-decision-state { background:rgba(53,175,148,.15); color:#81dbc3; }
+.ide-shell.theme-dark .ide-bottom-note { border-color:rgba(220,213,255,.10); background:rgba(255,255,255,.045); color:#aaa5bf; }
+.ide-shell.theme-dark .btn-ghost {
+  border-color:rgba(220,213,255,.15); background:rgba(255,255,255,.055); color:#d2cbea;
+}
+.ide-shell.theme-dark .btn-ghost:hover { border-color:rgba(178,156,255,.36); background:rgba(255,255,255,.09); color:#fff; }
+.ide-shell.theme-dark .ide-agent-panel { border-left-color:rgba(220,213,255,.10); background:rgba(24,22,40,.96); }
+.ide-shell.theme-dark .ide-agent-header,
+.ide-shell.theme-dark .ide-agent-footer { border-color:rgba(220,213,255,.09); background:rgba(255,255,255,.035); }
+.ide-shell.theme-dark .ide-inspector-context,
+.ide-shell.theme-dark .ide-agent-provider {
+  border-color:rgba(220,213,255,.12); background:rgba(255,255,255,.055); color:#eeeaff;
+}
+.ide-shell.theme-dark .ide-inspector-context > strong,
+.ide-shell.theme-dark .ide-agent-provider strong { color:#f3efff; }
+.ide-shell.theme-dark .ide-inspector-context > p,
+.ide-shell.theme-dark .ide-agent-provider small,
+.ide-shell.theme-dark .ide-agent-section-title,
+.ide-shell.theme-dark .ide-agent-context-head,
+.ide-shell.theme-dark .ide-agent-context-row,
+.ide-shell.theme-dark .ide-context-empty,
+.ide-shell.theme-dark .ide-agent-footer-meta small { color:#aaa4bf; }
+.ide-shell.theme-dark .ide-agent-select,
+.ide-shell.theme-dark .ide-task-input,
+.ide-shell.theme-dark input,
+.ide-shell.theme-dark textarea,
+.ide-shell.theme-dark select {
+  border-color:rgba(220,213,255,.15); background:#211e34; color:#f0ecff;
+}
+.ide-shell.theme-dark .ide-task-input::placeholder,
+.ide-shell.theme-dark input::placeholder,
+.ide-shell.theme-dark textarea::placeholder { color:#89839f; }
+.ide-shell.theme-dark .ide-inspector-stats { border-top-color:rgba(220,213,255,.09); }
+.ide-shell.theme-dark .ide-inspector-stats strong { color:#f3efff; }
+.ide-shell.theme-dark .ide-inspector-stats small { color:#aaa4bf; }
+.ide-shell.theme-dark .ide-context-summary { background:rgba(255,255,255,.045); color:#aaa4bf; }
+.ide-shell.theme-dark .modal-panel,
+.ide-shell.theme-dark .ide-search-panel {
+  border-color:rgba(228,220,255,.14); background:rgba(29,26,47,.96); color:#f0ecff;
+}
+.ide-shell.theme-dark .modal-title { color:#f4f0ff; }
+.ide-shell.theme-dark .ide-search-backdrop,
+.ide-shell.theme-dark .modal-backdrop { background:rgba(3,2,10,.66); }
+.ide-shell.theme-dark .icon-button { border-color:rgba(220,213,255,.14); background:rgba(255,255,255,.06); color:#e4ddfa; }
+.ide-shell.theme-dark .ide-mobile-dock { border-color:rgba(220,213,255,.12); background:rgba(24,22,40,.94); }
+.ide-shell.theme-dark .ide-mobile-dock button { color:#b8b1cf; }
+.ide-shell.theme-dark .ide-mobile-dock button.active { color:#c9bcff; }
+.ide-shell.theme-dark .ide-mobile-more { border-color:rgba(220,213,255,.13); background:#211e34; }
+.ide-shell.theme-dark .ide-mobile-more button { color:#d4cdeb; }
+.ide-shell.theme-dark .ide-mobile-more-group > span { color:#aaa4bf; }
+
+@media (max-width:760px) {
+  .ide-shell .ide-studio-heading { align-items:flex-start; }
+  .ide-shell .ide-studio-heading .ide-heading-actions { width:auto; }
+  .ide-shell .ide-studio-hero { padding:20px 17px; }
+  .ide-shell .ide-conversation-workspace { padding:17px; }
+  .ide-shell.theme-dark .ide-project-picker { background:rgba(255,255,255,.055); }
+}
