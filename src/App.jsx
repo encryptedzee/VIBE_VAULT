@@ -628,6 +628,9 @@ function Dashboard({ session, onSignOut }) {
   }
   const openVault = async vault => {
     setSelectedVault(vault)
+    const savedAI = vault.tags?.find(tag => tag.startsWith('ai:'))?.slice(3)
+    setChosenModel(aiModels.find(model => model.name === savedAI) || null)
+    setModelIntent('create')
     setActivePage('vault-detail')
     setVaultConversationsLoading(true)
     setVaultError('')
