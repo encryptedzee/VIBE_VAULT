@@ -1237,7 +1237,7 @@ function Dashboard({ session, initialPlan, onSignOut }) {
 
           {activeProject && !busy && activePane === 'conversations' && <div className="ide-page ide-vault-page">
             <div className="ide-page-heading"><div><span className="ide-kicker">PROJECT HISTORY</span><h1>Conversations</h1><p>Every preserved discussion, searchable and attached to this project.</p></div><Button onClick={requestSaveConversation}><Upload size={14}/> IMPORT</Button></div>
-            <section className="ide-vault-agent-stage" aria-label="Saved AI agents" onTouchStart={event => setVaultSwipeStart(event.touches[0]?.clientX ?? null)} onTouchEnd={event => { if (vaultSwipeStart !== null) { const delta = event.changedTouches[0].clientX - vaultSwipeStart; if (Math.abs(delta) > 42) moveVaultAgent(delta < 0 ? 1 : -1) } setVaultSwipeStart(null) }}>
+            <section className="ide-vault-agent-stage" style={activeVaultAgent ? { "--agent-hue": (safeVaultAgentIndex * 47 + 255) % 360 } : undefined} aria-label="Saved AI agents" onTouchStart={event => setVaultSwipeStart(event.touches[0]?.clientX ?? null)} onTouchEnd={event => { if (vaultSwipeStart !== null) { const delta = event.changedTouches[0].clientX - vaultSwipeStart; if (Math.abs(delta) > 42) moveVaultAgent(delta < 0 ? 1 : -1) } setVaultSwipeStart(null) }}>
               {activeVaultAgent ? <>
                 <div className="ide-vault-agent-orbit" aria-hidden="true"><span/><span/><span/></div>
                 <div className="ide-vault-agent-topline"><span>YOUR AI DIRECTORY · {safeVaultAgentIndex + 1} / {vaultAgents.length}</span><span className="ide-vault-agent-live"><i/> SAVED AGENT</span></div>
