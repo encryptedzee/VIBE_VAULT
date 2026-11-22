@@ -1,0 +1,9 @@
+# Keep the SPA shell and release marker fresh after every Worker preview deployment.
+# Vite emits content-hashed files under /assets, so those can be cached immutably.
+/*
+  Cache-Control: no-store, max-age=0, must-revalidate
+  X-Content-Type-Options: nosniff
+
+/assets/*
+  ! Cache-Control
+  Cache-Control: public, max-age=31536000, immutable

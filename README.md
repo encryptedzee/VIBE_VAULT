@@ -52,11 +52,14 @@ The checkout URLs are the Polar (or other hosted checkout) payment links for the
 3. Re-run the complete `supabase/schema.sql` after pulling this update. The migration adds AI preferences, capture inbox, hashed integration tokens, project decisions and session summaries. It also replaces the child-table project ownership checks with a `SECURITY DEFINER` helper to avoid policy recursion from project lookups.
 4. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in your local `.env`.
 5. In **Authentication → Providers**, enable Email and GitHub. In the GitHub OAuth application, use the Supabase callback URL shown by Supabase (the URL ending in `/auth/v1/callback`); this is GitHub's provider callback and is not the VibeVault app callback.
-6. In **Authentication → URL Configuration**, set the Site URL to your production app origin and add these exact app redirect URLs to the allowed redirect URLs:
+6. In **Authentication → URL Configuration**, keep the Site URL set to your production app origin and add these app callback URLs to the allowed Redirect URLs:
    - Production: `https://vibevault.vibevault-hq.workers.dev/auth/callback`
    - Local development: `http://localhost:5173/auth/callback`
+   - Cloudflare feature-branch preview: `https://feature-professional-workspace-redesign-vibevault.vibevault-hq.workers.dev/auth/callback`
 
-   VibeVault sends GitHub OAuth and email-confirmation flows to `/auth/callback`, exchanges/restores the Supabase session there, and then routes authenticated users into `/app`. If the production callback URL is not allow-listed in Supabase, the provider may return the user to the site without completing the intended workspace route.
+   The feature-preview callback is essential when testing GitHub OAuth on the preview domain. VibeVault requests `window.location.origin + '/auth/callback'`; Supabase only honors that redirect when it matches an allowed URL. If the preview callback is missing, Supabase can fall back to the configured Site URL and send the user to the production workspace, which will still show the old production UI. Keep the production Site URL unchanged.
+
+   Use the stable branch Preview URL for sign-in tests, not a one-off deployment URL: the branch Preview hostname stays the same across commits.
 7. Deploy the two new integration functions with JWT verification disabled because they authenticate using their own revocable VibeVault tokens:
 
 ```bash

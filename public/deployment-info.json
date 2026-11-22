@@ -1,0 +1,10 @@
+{
+  "application": "VibeVault",
+  "channel": "feature-preview",
+  "branch": "feature/professional-workspace-redesign",
+  "releaseLabel": "workspace-green-white-r2-2026-11-22",
+  "previewHost": "feature-professional-workspace-redesign-vibevault.vibevault-hq.workers.dev",
+  "productionHost": "vibevault.vibevault-hq.workers.dev",
+  "visibleMarker": "FEATURE PREVIEW · GREEN WORKSPACE",
+  "cachePolicy": "html-no-store-assets-immutable"
+}
