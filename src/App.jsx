@@ -517,3 +517,6 @@ function Dashboard({ session }) {
     </main>
   )
 }
+
+
+export default App
