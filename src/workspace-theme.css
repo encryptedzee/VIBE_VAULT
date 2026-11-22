@@ -849,3 +849,123 @@
   .ide-shell .ide-conversation-workspace { padding:17px; }
   .ide-shell.theme-dark .ide-project-picker { background:rgba(255,255,255,.055); }
 }
+
+/* DIRECTORY: one expandable navigation tree on a true-black rail. */
+.ide-shell .ide-explorer {
+  background:#050505 !important; color:#f4f4f5;
+  border-right:1px solid #202020 !important;
+  backdrop-filter:none; -webkit-backdrop-filter:none;
+}
+.ide-shell .ide-explorer-title {
+  min-height:38px; padding:0 3px 8px; color:#a1a1aa;
+}
+.ide-shell .ide-directory-toggle {
+  display:flex; align-items:center; gap:9px; border:0; background:transparent;
+  color:#f4f4f5; font-size:10px; font-weight:800; letter-spacing:.16em; cursor:pointer;
+}
+.ide-shell .ide-directory-toggle:hover { color:#fff; }
+.ide-shell .directory-chevron { color:#737373; transition:transform .2s ease; }
+.ide-shell .directory-chevron.expanded { transform:rotate(90deg); }
+.ide-shell .ide-directory-content {
+  display:flex; flex:1; min-height:0; flex-direction:column; gap:11px; overflow:hidden;
+}
+.ide-shell .ide-explorer-project-label,
+.ide-shell .ide-nav-group-label,
+.ide-shell .conversation-tree-head { color:#85858d !important; }
+.ide-shell .ide-explorer-project-label button,
+.ide-shell .ide-explorer-section-head button,
+.ide-shell .ide-explorer-title > button { color:#a1a1aa !important; }
+.ide-shell .ide-explorer-project-label button:hover,
+.ide-shell .ide-explorer-section-head button:hover,
+.ide-shell .ide-explorer-title > button:hover { color:#fff !important; background:#1c1c1f !important; border-color:#333 !important; }
+.ide-shell .ide-sidebar-search { background:#111113 !important; border-color:#29292d !important; }
+.ide-shell .ide-sidebar-search input { color:#fafafa !important; }
+.ide-shell .ide-sidebar-search input::placeholder { color:#71717a !important; }
+.ide-shell .ide-project-node,
+.ide-shell .ide-nav-item,
+.ide-shell .ide-file-node { color:#b7b7bf !important; }
+.ide-shell .ide-project-node-copy strong,
+.ide-shell .ide-file-node span { color:#e4e4e7 !important; }
+.ide-shell .ide-project-node-copy small,
+.ide-shell .ide-account-row small { color:#777780 !important; }
+.ide-shell .ide-project-node:hover,
+.ide-shell .ide-nav-item:hover,
+.ide-shell .ide-file-node:hover { background:#171719 !important; color:#fff !important; }
+.ide-shell .ide-project-node.selected,
+.ide-shell .ide-nav-item.active,
+.ide-shell .ide-file-node.selected {
+  color:#fff !important; background:#1d1b29 !important;
+  border-color:#373044 !important; box-shadow:inset 2px 0 #a78bfa !important;
+}
+.ide-shell .ide-nav-item.active > svg { color:#c4b5fd !important; }
+.ide-shell .ide-project-count,
+.ide-shell .ide-tree-count,
+.ide-shell .ide-nav-item small { background:#242427 !important; color:#d4d4d8 !important; }
+.ide-shell .ide-explorer-footer { border-top-color:#242427 !important; }
+.ide-shell .ide-account-row strong { color:#f4f4f5 !important; }
+.ide-shell .ide-account-row > button { color:#a1a1aa !important; }
+.ide-shell .ide-usage-card { background:#141316 !important; border-color:#302b3d !important; }
+
+/* Conversation Vault agent carousel: a full-width cinematic cover with touch/swipe navigation. */
+.ide-shell .ide-vault-page { max-width:1500px; }
+.ide-shell .ide-vault-agent-stage {
+  --agent-hue:265;
+  position:relative; min-height:300px; margin:3px 0 22px; padding:25px 29px 18px;
+  overflow:hidden; isolation:isolate; border:1px solid rgba(255,255,255,.15);
+  border-radius:25px; color:#fff;
+  background:
+    radial-gradient(ellipse at 78% 16%,hsla(calc(var(--agent-hue) + 42),88%,67%,.40),transparent 32%),
+    radial-gradient(ellipse at 18% 95%,hsla(calc(var(--agent-hue) - 70),80%,54%,.30),transparent 40%),
+    linear-gradient(118deg,hsl(var(--agent-hue) 42% 15%),hsl(calc(var(--agent-hue) + 34) 49% 22%) 55%,#101018);
+  box-shadow:0 22px 60px rgba(16,12,40,.22),inset 0 1px 0 rgba(255,255,255,.14);
+  touch-action:pan-y; transition:background .45s ease,transform .35s ease;
+}
+.ide-shell .ide-vault-agent-stage:before {
+  content:""; position:absolute; inset:0; z-index:-1; opacity:.20;
+  background-image:linear-gradient(rgba(255,255,255,.11) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.11) 1px,transparent 1px);
+  background-size:42px 42px; mask-image:linear-gradient(90deg,transparent,#000 55%,transparent);
+}
+.ide-shell .ide-vault-agent-orbit { position:absolute; width:380px; height:380px; right:4%; top:-105px; z-index:-1; border:1px solid rgba(255,255,255,.15); border-radius:50%; transform:rotate(-18deg); }
+.ide-shell .ide-vault-agent-orbit span { position:absolute; inset:28px; border:1px solid rgba(255,255,255,.11); border-radius:50%; }
+.ide-shell .ide-vault-agent-orbit span:nth-child(2) { inset:66px; }
+.ide-shell .ide-vault-agent-orbit span:nth-child(3) { inset:104px; }
+.ide-shell .ide-vault-agent-topline { display:flex; justify-content:space-between; align-items:center; gap:12px; color:rgba(255,255,255,.65); font-size:9px; font-weight:800; letter-spacing:.15em; }
+.ide-shell .ide-vault-agent-live { display:flex; align-items:center; gap:7px; color:#d5fbe8; }
+.ide-shell .ide-vault-agent-live i { width:6px; height:6px; border-radius:50%; background:#75e2ad; box-shadow:0 0 13px #75e2ad; }
+.ide-shell .ide-vault-agent-identity { display:flex; align-items:center; gap:22px; min-height:166px; animation:vault-agent-arrive .42s cubic-bezier(.2,.8,.2,1) both; }
+.ide-shell .ide-vault-agent-mark { width:94px; height:94px; flex:none; display:grid; place-items:center; border:1px solid rgba(255,255,255,.24); border-radius:28px; background:rgba(255,255,255,.11); box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 18px 38px rgba(0,0,0,.18); backdrop-filter:blur(14px); }
+.ide-shell .ide-vault-agent-logo { width:54px; height:54px; display:grid; place-items:center; color:#fff; }
+.ide-shell .ide-vault-agent-logo img { width:44px; height:44px; object-fit:contain; filter:brightness(0) invert(1); }
+.ide-shell .ide-vault-agent-logo .provider-wordmark { color:#fff; font-size:18px; font-weight:900; }
+.ide-shell .ide-vault-agent-copy { min-width:0; }
+.ide-shell .ide-vault-agent-eyebrow { color:rgba(255,255,255,.57); font-size:9px; font-weight:800; letter-spacing:.18em; }
+.ide-shell .ide-vault-agent-copy h2 { margin:8px 0 4px; color:#fff; font-size:clamp(29px,4vw,45px); font-weight:850; letter-spacing:-.055em; line-height:1.04; }
+.ide-shell .ide-vault-agent-copy p { margin:0 0 12px; color:rgba(255,255,255,.84); font-size:13px; }
+.ide-shell .ide-vault-agent-model { color:rgba(255,255,255,.55); font-size:10px; }
+.ide-shell .ide-vault-agent-model span { padding:0 5px; }
+.ide-shell .ide-vault-agent-controls { display:flex; align-items:center; gap:10px; }
+.ide-shell .ide-vault-agent-controls > button:not(.ide-vault-agent-manage) { width:34px; height:34px; display:grid; place-items:center; border:1px solid rgba(255,255,255,.22); border-radius:50%; background:rgba(255,255,255,.09); color:#fff; backdrop-filter:blur(10px); }
+.ide-shell .ide-vault-agent-controls > button:not(.ide-vault-agent-manage):hover { background:rgba(255,255,255,.2); }
+.ide-shell .ide-vault-agent-dots { display:flex; align-items:center; gap:6px; }
+.ide-shell .ide-vault-agent-dots button { width:6px; height:6px; padding:0; border:0; border-radius:99px; background:rgba(255,255,255,.35); transition:width .2s ease,background .2s ease; }
+.ide-shell .ide-vault-agent-dots button.active { width:23px; background:#fff; }
+.ide-shell .ide-vault-agent-manage { display:inline-flex; align-items:center; gap:6px; margin-left:auto; padding:9px 12px; border:1px solid rgba(255,255,255,.2); border-radius:10px; background:rgba(255,255,255,.09); color:#fff; font-size:8px; font-weight:800; letter-spacing:.1em; }
+.ide-shell .ide-vault-agent-hint { margin-top:13px; color:rgba(255,255,255,.35); font-size:8px; font-weight:800; letter-spacing:.17em; text-align:right; }
+.ide-shell .ide-vault-agent-empty { min-height:250px; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:8px; text-align:center; }
+.ide-shell .ide-vault-agent-empty > span { width:48px; height:48px; display:grid; place-items:center; border:1px solid rgba(255,255,255,.2); border-radius:15px; background:rgba(255,255,255,.10); }
+.ide-shell .ide-vault-agent-empty strong { color:#fff; font-size:19px; }
+.ide-shell .ide-vault-agent-empty p { max-width:390px; margin:0 0 7px; color:rgba(255,255,255,.65); font-size:11px; line-height:1.6; }
+.ide-shell .ide-vault-agent-empty .btn-solid { border-color:rgba(255,255,255,.3); background:#fff; color:#171322; }
+@keyframes vault-agent-arrive { from { opacity:0; transform:translateX(22px) scale(.985); filter:blur(5px); } to { opacity:1; transform:translateX(0) scale(1); filter:blur(0); } }
+.ide-shell.theme-dark .ide-vault-agent-stage { box-shadow:0 22px 60px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.14); }
+@media (max-width:760px) {
+  .ide-shell .ide-vault-agent-stage { min-height:285px; padding:20px 17px 16px; border-radius:20px; }
+  .ide-shell .ide-vault-agent-identity { gap:14px; min-height:160px; }
+  .ide-shell .ide-vault-agent-mark { width:66px; height:66px; border-radius:20px; }
+  .ide-shell .ide-vault-agent-logo { width:42px; height:42px; }
+  .ide-shell .ide-vault-agent-logo img { width:34px; height:34px; }
+  .ide-shell .ide-vault-agent-copy h2 { font-size:clamp(24px,7vw,34px); overflow-wrap:anywhere; }
+  .ide-shell .ide-vault-agent-controls { gap:7px; }
+  .ide-shell .ide-vault-agent-manage { padding:8px 9px; font-size:7px; }
+  .ide-shell .ide-vault-agent-hint { font-size:7px; }
+}

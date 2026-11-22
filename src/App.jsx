@@ -555,6 +555,9 @@ function Dashboard({ session, initialPlan, onSignOut }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [directoryExpanded, setDirectoryExpanded] = useState(true)
+  const [vaultAgentIndex, setVaultAgentIndex] = useState(0)
+  const [vaultSwipeStart, setVaultSwipeStart] = useState(null)
 
   const activeProject = projects.find(p => p.id === activeProjectId) || projects[0] || null
   const isPro = Boolean(profile?.is_pro)
@@ -1067,6 +1070,11 @@ function Dashboard({ session, initialPlan, onSignOut }) {
     ]}
   ]
   const navItems = navGroups.flatMap(group => group.items)
+  const vaultAgents = AI_PROVIDERS.filter(provider => providerPreferences.providers?.[provider.name]?.enabled)
+  const safeVaultAgentIndex = vaultAgents.length ? vaultAgentIndex % vaultAgents.length : 0
+  const activeVaultAgent = vaultAgents[safeVaultAgentIndex] || null
+  const activeVaultAgentSettings = activeVaultAgent ? (providerPreferences.providers?.[activeVaultAgent.name] || {}) : {}
+  const moveVaultAgent = direction => { if (vaultAgents.length) setVaultAgentIndex(index => (index + direction + vaultAgents.length) % vaultAgents.length) }
   const navCount = item => item.id === 'conversations' ? projectConversations.length : item.id === 'decisions' ? projectDecisions.length : item.id === 'handoffs' ? projectHandoffs.length : item.id === 'inbox' ? captureInbox.length : item.id === 'connections' ? integrationTokens.filter(token => !token.revoked_at).length : ''
   const setPane = pane => { setActivePane(pane); if (pane !== 'conversation') setActiveConversationId(null); setMobileAgentVisible(false); setMobileNavOpen(false) }
   useEffect(() => { try { window.localStorage.setItem('vibevault-workspace-theme', darkMode ? 'dark' : 'light') } catch { /* Storage may be unavailable in private browsing. */ } }, [darkMode])
@@ -1103,27 +1111,35 @@ function Dashboard({ session, initialPlan, onSignOut }) {
       </nav>
 
       <aside className="ide-explorer">
-        <div className="ide-explorer-title"><span>EXPLORER</span><button title="Create project" onClick={requestCreateProject}><Plus size={15}/></button></div>
-        <div className="ide-explorer-project-label"><span><ChevronDown size={13}/> PROJECTS</span><button title="New project" onClick={requestCreateProject}><Plus size={14}/></button></div>
-        <div className="ide-sidebar-search"><Search size={13}/><input aria-label="Filter projects" value={projectSearch} onChange={event => setProjectSearch(event.target.value)} placeholder="Filter projects"/><button type="button" title="Clear project filter" aria-label="Clear project filter" disabled={!projectSearch} onClick={() => setProjectSearch('')}><X size={13}/></button></div>
-        <div className="ide-project-tree">
-          {filteredProjects.map(project => <button key={project.id} className={'ide-project-node ' + (activeProject?.id === project.id ? 'selected' : '')} aria-pressed={activeProject?.id === project.id} onClick={() => { setActiveProjectId(project.id); setActiveConversationId(null); setSelectedIds([]); setActivePane('overview'); setMobileNavOpen(false) }}><FolderKanban size={15}/><span className="ide-project-node-copy"><strong>{project.title}</strong><small>{project.description || 'Project workspace'}</small></span><em className="ide-project-count">{conversations.filter(item => item.project_id === project.id).length}</em></button>)}
-          {!projects.length && <div className="ide-sidebar-empty">Your projects will appear here.</div>}
-          {!!projects.length && !filteredProjects.length && <div className="ide-sidebar-empty ide-project-filter-empty">No projects match “{projectSearch}”.<button onClick={() => setProjectSearch('')}>Clear filter</button></div>}
+        <div className="ide-explorer-title">
+          <button className="ide-directory-toggle" aria-expanded={directoryExpanded} onClick={() => setDirectoryExpanded(value => !value)}>
+            <ChevronRight size={15} className={directoryExpanded ? 'directory-chevron expanded' : 'directory-chevron'}/>
+            <span>DIRECTORY</span>
+          </button>
+          <button title="Create project" aria-label="Create project" onClick={requestCreateProject}><Plus size={15}/></button>
         </div>
-        <div className="ide-sidebar-nav">
-          {navGroups.map(group => <section className="ide-nav-group" key={group.label}>
-            <div className="ide-nav-group-label">{group.label}</div>
-            {group.items.map(item => <button key={item.id} className={'ide-nav-item ' + (activePane === item.id || (item.id === 'conversations' && activePane === 'conversation') ? 'active' : '')} aria-current={activePane === item.id || (item.id === 'conversations' && activePane === 'conversation') ? 'page' : undefined} onClick={() => setPane(item.id)}><item.icon size={15}/><span>{item.label}</span>{navCount(item) !== '' && Number(navCount(item)) > 0 && <small>{navCount(item)}</small>}</button>)}
-          </section>)}
-        </div>
-        <div className="ide-explorer-section-head conversation-tree-head"><span><ChevronDown size={13}/> CONVERSATION FILES <small className="ide-tree-count">{projectConversations.length}</small></span><button title="Import conversation" aria-label="Import conversation" onClick={requestSaveConversation}><Plus size={14}/></button></div>
-        <div className="ide-conversation-tree">
-          {projectConversations.map(conversation => <button key={conversation.id} className={'ide-file-node ' + (activeConversationId === conversation.id ? 'selected' : '')} onClick={() => openConversation(conversation)}><FileText size={14}/><span>{conversation.title}</span>{conversation.cleaned_spec && <span className="ide-spec-dot" title="Specification available"/>}</button>)}
-          {!projectConversations.length && <div className="ide-sidebar-empty">No conversation files yet.<button onClick={requestSaveConversation}>Import your first conversation</button></div>}
-        </div>
-        <div className="ide-explorer-footer">
+        {directoryExpanded && <div className="ide-directory-content">
+          <div className="ide-explorer-project-label"><span><ChevronDown size={13}/> PROJECTS</span><button title="New project" onClick={requestCreateProject}><Plus size={14}/></button></div>
+          <div className="ide-sidebar-search"><Search size={13}/><input aria-label="Filter projects" value={projectSearch} onChange={event => setProjectSearch(event.target.value)} placeholder="Filter projects"/><button type="button" title="Clear project filter" aria-label="Clear project filter" disabled={!projectSearch} onClick={() => setProjectSearch('')}><X size={13}/></button></div>
+          <div className="ide-project-tree">
+            {filteredProjects.map(project => <button key={project.id} className={'ide-project-node ' + (activeProject?.id === project.id ? 'selected' : '')} aria-pressed={activeProject?.id === project.id} onClick={() => { setActiveProjectId(project.id); setActiveConversationId(null); setSelectedIds([]); setActivePane('overview'); setMobileNavOpen(false) }}><FolderKanban size={15}/><span className="ide-project-node-copy"><strong>{project.title}</strong><small>{project.description || 'Project workspace'}</small></span><em className="ide-project-count">{conversations.filter(item => item.project_id === project.id).length}</em></button>)}
+            {!projects.length && <div className="ide-sidebar-empty">Your projects will appear here.</div>}
+            {!!projects.length && !filteredProjects.length && <div className="ide-sidebar-empty ide-project-filter-empty">No projects match “{projectSearch}”.<button onClick={() => setProjectSearch('')}>Clear filter</button></div>}
+          </div>
+          <div className="ide-sidebar-nav">
+            {navGroups.map(group => <section className="ide-nav-group" key={group.label}>
+              <div className="ide-nav-group-label">{group.label}</div>
+              {group.items.map(item => <button key={item.id} className={'ide-nav-item ' + (activePane === item.id || (item.id === 'conversations' && activePane === 'conversation') ? 'active' : '')} aria-current={activePane === item.id || (item.id === 'conversations' && activePane === 'conversation') ? 'page' : undefined} onClick={() => setPane(item.id)}><item.icon size={15}/><span>{item.label}</span>{navCount(item) !== '' && Number(navCount(item)) > 0 && <small>{navCount(item)}</small>}</button>)}
+            </section>)}
+          </div>
+          <div className="ide-explorer-section-head conversation-tree-head"><span><ChevronDown size={13}/> CONVERSATION FILES <small className="ide-tree-count">{projectConversations.length}</small></span><button title="Import conversation" aria-label="Import conversation" onClick={requestSaveConversation}><Plus size={14}/></button></div>
+          <div className="ide-conversation-tree">
+            {projectConversations.map(conversation => <button key={conversation.id} className={'ide-file-node ' + (activeConversationId === conversation.id ? 'selected' : '')} onClick={() => openConversation(conversation)}><FileText size={14}/><span>{conversation.title}</span>{conversation.cleaned_spec && <span className="ide-spec-dot" title="Specification available"/>}</button>)}
+            {!projectConversations.length && <div className="ide-sidebar-empty">No conversation files yet.<button onClick={requestSaveConversation}>Import your first conversation</button></div>}
+          </div>
           {!isPro && <div className="ide-usage-card"><div><span>STARTER USAGE</span><strong>{projects.length}/1 projects · {conversations.length}/3 conversations</strong></div><button onClick={() => setModal({ type: 'upgrade', plan: 'pro' })}>UPGRADE</button></div>}
+        </div>}
+        <div className="ide-explorer-footer">
           <div className="ide-account-row"><span className="ide-account-avatar">{(profile?.display_name || user.email || 'V').slice(0,1).toUpperCase()}</span><span><strong>{profile?.display_name || user.user_metadata?.display_name || 'Vault owner'}</strong><small>{user.email}</small></span><button title="Sign out" onClick={onSignOut}><LogOut size={15}/></button></div>
         </div>
       </aside>
@@ -1219,8 +1235,20 @@ function Dashboard({ session, initialPlan, onSignOut }) {
             <ConversationEditor conversation={activeConversation} mode={transcriptMode} isPro={isPro} onModeChange={setTranscriptMode} cleaning={cleaningId === activeConversation.id} onClean={() => generateCleanSpec(activeConversation)}/>
           </div>}
 
-          {activeProject && !busy && activePane === 'conversations' && <div className="ide-page">
+          {activeProject && !busy && activePane === 'conversations' && <div className="ide-page ide-vault-page">
             <div className="ide-page-heading"><div><span className="ide-kicker">PROJECT HISTORY</span><h1>Conversations</h1><p>Every preserved discussion, searchable and attached to this project.</p></div><Button onClick={requestSaveConversation}><Upload size={14}/> IMPORT</Button></div>
+            <section className="ide-vault-agent-stage" aria-label="Saved AI agents" onTouchStart={event => setVaultSwipeStart(event.touches[0]?.clientX ?? null)} onTouchEnd={event => { if (vaultSwipeStart !== null) { const delta = event.changedTouches[0].clientX - vaultSwipeStart; if (Math.abs(delta) > 42) moveVaultAgent(delta < 0 ? 1 : -1) } setVaultSwipeStart(null) }}>
+              {activeVaultAgent ? <>
+                <div className="ide-vault-agent-orbit" aria-hidden="true"><span/><span/><span/></div>
+                <div className="ide-vault-agent-topline"><span>YOUR AI DIRECTORY · {safeVaultAgentIndex + 1} / {vaultAgents.length}</span><span className="ide-vault-agent-live"><i/> SAVED AGENT</span></div>
+                <div className="ide-vault-agent-identity" key={activeVaultAgent.name}>
+                  <div className="ide-vault-agent-mark"><AIProviderLogo provider={activeVaultAgent} className="ide-vault-agent-logo"/></div>
+                  <div className="ide-vault-agent-copy"><span className="ide-vault-agent-eyebrow">{activeVaultAgent.name} WORKSPACE</span><h2>{activeVaultAgentSettings.agent_name || activeVaultAgent.name}</h2><p>{activeVaultAgentSettings.role || activeVaultAgent.role}</p><div className="ide-vault-agent-model">{activeVaultAgentSettings.model || 'Model not specified'} <span>·</span> {activeVaultAgent.description}</div></div>
+                </div>
+                <div className="ide-vault-agent-controls"><button type="button" aria-label="Previous agent" onClick={() => moveVaultAgent(-1)}><ChevronLeft size={19}/></button><div className="ide-vault-agent-dots">{vaultAgents.map((provider,index) => <button key={provider.name} type="button" aria-label={'Show ' + (providerPreferences.providers?.[provider.name]?.agent_name || provider.name)} aria-pressed={index === safeVaultAgentIndex} className={index === safeVaultAgentIndex ? 'active' : ''} onClick={() => setVaultAgentIndex(index)}/>)}</div><button type="button" aria-label="Next agent" onClick={() => moveVaultAgent(1)}><ChevronRight size={19}/></button><button type="button" className="ide-vault-agent-manage" onClick={() => setPane('preferences')}>MANAGE AGENTS <ArrowUpRight size={13}/></button></div>
+                <div className="ide-vault-agent-hint">SWIPE TO EXPLORE YOUR AGENTS</div>
+              </> : <div className="ide-vault-agent-empty"><span><Bot size={25}/></span><strong>Your AI team starts here.</strong><p>Save the agents you work with and give each one a name, model and purpose.</p><Button onClick={() => setPane('preferences')}>SET UP AGENTS <ArrowUpRight size={13}/></Button></div>}
+            </section>
             <div className="ide-filter-row"><div className="source-filters">{SOURCE_AIS.map(source => <button key={source} className={'filter-chip ' + (sourceFilter === source ? 'active' : '')} onClick={() => setSourceFilter(source)}>{source}</button>)}</div><span>{visibleConversations.length} RECORDS</span></div>
             <div className="ide-resource-list">{visibleConversations.map(conversation => <div className="ide-resource-row" key={conversation.id}><label className="ide-context-checkbox"><input type="checkbox" checked={selectedIds.includes(conversation.id)} onChange={() => toggleConversation(conversation.id)}/></label><button className="ide-resource-open" onClick={() => openConversation(conversation)}><FileText size={17}/><span className="ide-resource-copy"><strong>{conversation.title}</strong><small>{conversation.source_ai} · {formatDate(conversation.created_at)} · {(conversation.raw_content || '').length.toLocaleString()} characters</small><em>{(conversation.raw_content || '').replace(/\s+/g, ' ').slice(0,150)}{(conversation.raw_content || '').length > 150 ? '…' : ''}</em></span></button><span className="ide-resource-tags">{(conversation.tags || []).slice(0,2).map(tag => <em key={tag}>{tag}</em>)}{conversation.cleaned_spec && <em className="ide-resource-spec">SPEC READY</em>}</span><button className="ide-row-chevron" onClick={() => openConversation(conversation)}><ChevronRight size={16}/></button></div>)}
             {!visibleConversations.length && <div className="ide-panel-empty"><MessageSquareText size={22}/><strong>No matching conversations</strong><span>Import a conversation to start this project's history.</span></div>}</div>
