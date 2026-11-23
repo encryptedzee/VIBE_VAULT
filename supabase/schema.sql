@@ -468,7 +468,7 @@ create index if not exists projects_github_repo_idx
 create table if not exists public.github_installations (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null unique references auth.users(id) on delete cascade,
-  installation_id bigint not null unique,
+  installation_id bigint not null,
   account_id bigint not null,
   account_login text not null,
   account_type text not null default 'User',
@@ -525,9 +525,9 @@ create or replace function public.append_conversation_response(
 )
 returns jsonb
 language plpgsql
-security definer
+security invoker
 set search_path = ''
-as $$
+as $
 declare
   updated_row public.conversations;
   safe_agent text;
@@ -567,4 +567,7 @@ end;
 $$;
 
 revoke all on function public.append_conversation_response(uuid, uuid, text, text) from public, anon, authenticated;
+grant usage on schema public to service_role;
+grant select, insert, update, delete on public.github_installations, public.github_app_states to service_role;
+grant select, update on public.conversations to service_role;
 grant execute on function public.append_conversation_response(uuid, uuid, text, text) to service_role;

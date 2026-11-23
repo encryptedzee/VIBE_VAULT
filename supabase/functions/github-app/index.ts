@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const allowedOrigins = () => (Deno.env.get("VIBEVAULT_APP_ORIGINS") || "https://vibevault.vibevault-hq.workers.dev,http://localhost:5173").split(",").map(value => value.trim()).filter(Boolean);
+const allowedOrigins = () => (Deno.env.get("VIBEVAULT_APP_ORIGINS") || "https://vibevault.vibevault-hq.workers.dev,https://feature-vault-browser-github-connect-vibevault.vibevault-hq.workers.dev,http://localhost:5173").split(",").map(value => value.trim()).filter(Boolean);
 const cors = (origin: string) => ({
   "Access-Control-Allow-Origin": origin,
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
