@@ -590,3 +590,237 @@
   .vv-create-vault-meta { align-items:flex-start;flex-direction:column; }
   .vv-vault-detail-section-head { align-items:flex-start;flex-direction:column; }
 }
+
+
+/* Handoff flow — source selection, context review, and explicit clipboard fallback. */
+.vv-handoff-page {
+  width:100%;
+  max-width:1080px;
+  margin:0 auto;
+}
+.vv-handoff-target {
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  flex:0 0 auto;
+  padding:8px 11px;
+  border:1px solid color-mix(in srgb,var(--model-accent,#55d8f2) 30%,rgba(190,211,246,.12));
+  border-radius:9px;
+  background:color-mix(in srgb,var(--model-accent,#55d8f2) 7%,rgba(255,255,255,.035));
+  color:#aab9ce;
+  font-size:8px;
+  font-weight:800;
+  letter-spacing:.08em;
+}
+.vv-handoff-target>span {
+  display:grid;
+  width:25px;
+  height:25px;
+  place-items:center;
+  border:1px solid color-mix(in srgb,var(--model-accent,#55d8f2) 48%,transparent);
+  border-radius:7px;
+  background:color-mix(in srgb,var(--model-accent,#55d8f2) 13%,#101827);
+  color:var(--model-accent,#80dff0);
+  font-size:10px;
+}
+.vv-handoff-vault-list {
+  display:grid;
+  gap:10px;
+  max-width:850px;
+}
+.vv-handoff-vault-option {
+  display:flex;
+  min-height:82px;
+  align-items:center;
+  gap:14px;
+  padding:15px 17px;
+  border:1px solid rgba(190,211,246,.16);
+  border-radius:13px;
+  background:linear-gradient(120deg,rgba(255,255,255,.075),rgba(255,255,255,.025));
+  color:#f1f5fb;
+  text-align:left;
+  cursor:pointer;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 12px 30px rgba(0,0,0,.14);
+  -webkit-backdrop-filter:blur(20px) saturate(145%);
+  backdrop-filter:blur(20px) saturate(145%);
+  transition:transform .18s,border-color .18s,background .18s,box-shadow .18s;
+}
+.vv-handoff-vault-option:hover {
+  transform:translateY(-2px);
+  border-color:rgba(85,216,242,.38);
+  background:linear-gradient(120deg,rgba(255,255,255,.105),rgba(255,255,255,.035));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.09),0 17px 34px rgba(0,0,0,.2);
+}
+.vv-handoff-vault-icon {
+  display:grid;
+  width:43px;
+  height:43px;
+  flex:0 0 43px;
+  place-items:center;
+  border:1px solid rgba(85,216,242,.2);
+  border-radius:10px;
+  background:rgba(39,101,255,.12);
+  color:#78d9ee;
+}
+.vv-handoff-vault-copy {
+  display:grid;
+  min-width:0;
+  flex:1;
+  gap:5px;
+}
+.vv-handoff-vault-copy strong {
+  overflow:hidden;
+  color:#f2f6fc;
+  font-size:13px;
+  font-weight:700;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.vv-handoff-vault-copy small {
+  overflow:hidden;
+  color:#8797ad;
+  font-size:9px;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.vv-handoff-vault-option>svg { color:#8298b5; }
+.vv-handoff-review-grid {
+  display:grid;
+  grid-template-columns:minmax(0,1.35fr) minmax(230px,.65fr);
+  gap:14px;
+  margin:0 0 18px;
+}
+.vv-handoff-review-card {
+  min-width:0;
+  padding:20px;
+  border:1px solid rgba(190,211,246,.17);
+  border-radius:14px;
+  background:linear-gradient(145deg,rgba(255,255,255,.075),rgba(255,255,255,.025));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 14px 34px rgba(0,0,0,.16);
+  -webkit-backdrop-filter:blur(22px) saturate(145%);
+  backdrop-filter:blur(22px) saturate(145%);
+}
+.vv-handoff-review-card h2 {
+  margin:8px 0;
+  color:#f3f6fc;
+  font-family:var(--vv-workspace-display);
+  font-size:24px;
+  font-weight:650;
+  letter-spacing:-.045em;
+}
+.vv-handoff-review-card p {
+  margin:0;
+  color:#8d9bb0;
+  font-size:10px;
+  line-height:1.7;
+}
+.vv-handoff-review-meta {
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px 18px;
+  margin-top:18px;
+  padding-top:13px;
+  border-top:1px solid rgba(190,211,246,.1);
+  color:#91a1b7;
+  font-size:8px;
+}
+.vv-handoff-review-meta span { display:inline-flex;align-items:center;gap:6px; }
+.vv-handoff-review-meta svg { color:#78d9ee; }
+.vv-handoff-destination-card {
+  background:radial-gradient(ellipse at 85% 15%,var(--model-glow,rgba(85,216,242,.13)),transparent 55%),linear-gradient(145deg,rgba(255,255,255,.075),rgba(255,255,255,.025));
+}
+.vv-handoff-destination-mark {
+  display:grid;
+  width:39px;
+  height:39px;
+  place-items:center;
+  margin-top:13px;
+  border:1px solid color-mix(in srgb,var(--model-accent,#55d8f2) 48%,transparent);
+  border-radius:11px;
+  background:color-mix(in srgb,var(--model-accent,#55d8f2) 14%,#101827);
+  color:var(--model-accent,#80dff0);
+  font-size:15px;
+  font-weight:800;
+}
+.vv-handoff-thread-list {
+  overflow:hidden;
+  border:1px solid rgba(190,211,246,.14);
+  border-radius:13px;
+  background:rgba(255,255,255,.025);
+}
+.vv-handoff-thread-heading {
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  padding:13px 16px;
+  border-bottom:1px solid rgba(190,211,246,.1);
+  color:#8394ac;
+  font-size:8px;
+  font-weight:800;
+  letter-spacing:.12em;
+}
+.vv-handoff-thread {
+  display:flex;
+  min-height:55px;
+  align-items:center;
+  gap:13px;
+  padding:10px 16px;
+  border-bottom:1px solid rgba(190,211,246,.07);
+}
+.vv-handoff-thread:last-child { border-bottom:0; }
+.vv-handoff-thread>span {
+  color:#6d819f;
+  font-size:9px;
+  font-weight:800;
+}
+.vv-handoff-thread>div { display:grid;min-width:0;flex:1;gap:4px; }
+.vv-handoff-thread strong {
+  overflow:hidden;
+  color:#e8eef8;
+  font-size:10px;
+  font-weight:650;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.vv-handoff-thread small { color:#8292a9;font-size:8px; }
+.vv-handoff-thread>svg { flex:0 0 auto;color:#59cfa9; }
+.vv-handoff-no-threads {
+  margin:0;
+  padding:17px;
+  color:#8e9db1;
+  font-size:10px;
+  line-height:1.65;
+}
+.vv-handoff-actions {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px;
+  margin-top:16px;
+  padding:16px 18px;
+  border:1px solid rgba(85,216,242,.17);
+  border-radius:12px;
+  background:linear-gradient(110deg,rgba(39,101,255,.09),rgba(85,216,242,.035));
+}
+.vv-handoff-actions p {
+  max-width:570px;
+  margin:0;
+  color:#91a0b5;
+  font-size:9px;
+  line-height:1.7;
+}
+.vv-handoff-actions .vv-card-button { flex:0 0 auto; }
+@media(max-width:760px) {
+  .vv-page-heading { align-items:flex-start;flex-direction:column; }
+  .vv-handoff-review-grid { grid-template-columns:1fr; }
+  .vv-handoff-actions { align-items:flex-start;flex-direction:column; }
+}
+@media(max-width:540px) {
+  .vv-handoff-vault-option { min-height:74px;gap:10px;padding:12px; }
+  .vv-handoff-vault-copy small { white-space:normal; }
+  .vv-handoff-review-card { padding:16px; }
+  .vv-handoff-actions .vv-card-button { width:100%; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .vv-handoff-vault-option { transition:none!important; }
+}
