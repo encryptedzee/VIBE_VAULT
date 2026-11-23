@@ -448,3 +448,123 @@ alter table public.agent_skills add column if not exists updated_at timestamptz 
 alter table public.capture_inbox add column if not exists updated_at timestamptz not null default now();
 alter table public.project_decisions add column if not exists updated_at timestamptz not null default now();
 
+
+
+-- VibeVault Workspace repository connection and attachment support.
+alter table public.projects
+  add column if not exists github_repository_id bigint,
+  add column if not exists github_full_name text,
+  add column if not exists github_html_url text,
+  add column if not exists github_default_branch text,
+  add column if not exists github_private boolean,
+  add column if not exists github_description text,
+  add column if not exists github_language text,
+  add column if not exists github_linked_at timestamptz;
+
+create index if not exists projects_github_repo_idx
+  on public.projects(user_id, github_repository_id)
+  where github_repository_id is not null;
+
+create table if not exists public.github_installations (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null unique references auth.users(id) on delete cascade,
+  installation_id bigint not null unique,
+  account_id bigint not null,
+  account_login text not null,
+  account_type text not null default 'User',
+  repository_selection text not null default 'selected',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.github_app_states (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  nonce_hash text not null unique,
+  return_origin text not null,
+  expires_at timestamptz not null,
+  used_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+alter table public.github_installations enable row level security;
+alter table public.github_app_states enable row level security;
+revoke all on public.github_installations, public.github_app_states from anon, authenticated;
+create index if not exists github_app_states_expiry_idx on public.github_app_states(expires_at);
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'vault-attachments','vault-attachments',false,26214400,
+  array['image/jpeg','image/png','image/webp','image/gif','image/avif','video/mp4','video/webm','application/pdf','text/plain','text/markdown','application/json','text/csv']
+)
+on conflict (id) do update set
+  public = false,
+  file_size_limit = 26214400,
+  allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "vault_attachments_insert_own" on storage.objects;
+create policy "vault_attachments_insert_own" on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'vault-attachments' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+drop policy if exists "vault_attachments_select_own" on storage.objects;
+create policy "vault_attachments_select_own" on storage.objects
+  for select to authenticated
+  using (bucket_id = 'vault-attachments' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+drop policy if exists "vault_attachments_delete_own" on storage.objects;
+create policy "vault_attachments_delete_own" on storage.objects
+  for delete to authenticated
+  using (bucket_id = 'vault-attachments' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+create or replace function public.append_conversation_response(
+  p_conversation_id uuid,
+  p_user_id uuid,
+  p_agent_name text,
+  p_response_content text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  updated_row public.conversations;
+  safe_agent text;
+begin
+  if p_conversation_id is null or p_user_id is null then
+    raise exception 'conversation_id and user identity are required.';
+  end if;
+  if p_response_content is null or length(trim(p_response_content)) = 0 then
+    raise exception 'Response content cannot be empty.';
+  end if;
+  if length(p_response_content) > 200000 then
+    raise exception 'Response content exceeds the 200 KB limit.';
+  end if;
+
+  safe_agent := left(regexp_replace(coalesce(nullif(trim(p_agent_name), ''), 'Connected AI'), E'[\\r\\n]+', ' ', 'g'), 80);
+
+  update public.conversations c
+  set raw_content = coalesce(c.raw_content, '') || E'\n\n---\n\n## Response from ' || safe_agent || E'\n\n' || trim(p_response_content),
+      tags = case
+        when 'agent-response' = any(coalesce(c.tags, '{}'::text[])) then coalesce(c.tags, '{}'::text[])
+        else array_append(coalesce(c.tags, '{}'::text[]), 'agent-response')
+      end
+  where c.id = p_conversation_id and c.user_id = p_user_id
+  returning c.* into updated_row;
+
+  if not found then
+    raise exception 'Conversation not found in the connected user account.';
+  end if;
+
+  return jsonb_build_object(
+    'saved', true,
+    'conversation_id', updated_row.id,
+    'title', updated_row.title,
+    'updated_at', updated_row.updated_at
+  );
+end;
+$$;
+
+revoke all on function public.append_conversation_response(uuid, uuid, text, text) from public, anon, authenticated;
+grant execute on function public.append_conversation_response(uuid, uuid, text, text) to service_role;

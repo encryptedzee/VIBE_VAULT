@@ -154,3 +154,25 @@ Before production launch, verify the new SQL migration in a staging Supabase pro
 ## Repository
 
 https://github.com/encryptedzee/VIBE_VAULT
+
+
+## Vault Browser and Inside the Vault
+
+The app now separates the Workspace into two views. Vault Browser is the light project library with Recent Vaults, category filters, search and handoff actions. Opening a Vault enters the dark editor-style Inside the Vault workspace, where users can start a conversation without selecting an AI first, attach files, save the draft, and hand it off later.
+
+The private \`vault-attachments\` Supabase Storage bucket is created by the schema migration. It accepts images, MP4/WebM video, PDFs, text/Markdown, JSON and CSV, with a 25 MB per-file limit. Files are private and served to the owner using short-lived signed URLs.
+
+## GitHub App repository connection
+
+GitHub login and repository access are separate. VibeVault uses a GitHub App installation; users choose which repositories to grant to the App, including private repositories. The browser only receives repository metadata; the App private key and short-lived installation tokens remain server-side. This initial integration is read-only and does not push code to connected customer repositories.
+
+1. Create a GitHub App and set its **Setup URL** to \`https://YOUR_SUPABASE_PROJECT.supabase.co/functions/v1/github-app\`.
+2. Set repository permissions to **Contents: Read-only** and **Metadata: Read-only**.
+3. Select **Only select repositories** for installation access.
+4. Convert the downloaded app private key to PKCS#8 PEM: \`openssl pkcs8 -topk8 -nocrypt -in github-app-private-key.pem -out github-app-private-key-pkcs8.pem\`.
+5. Configure Supabase Function secrets: \`GITHUB_APP_ID\`, \`GITHUB_APP_SLUG\`, \`GITHUB_APP_PRIVATE_KEY\` (PKCS#8 PEM), \`GITHUB_STATE_SECRET\` (random secret), and \`VIBEVAULT_APP_ORIGINS\` (comma-separated allowed app origins).
+6. Deploy the callback/API function with \`supabase functions deploy github-app --no-verify-jwt\`. It verifies user sessions itself for POST requests and verifies signed, one-time state for GitHub's setup redirect.
+7. Apply the new SQL at the end of \`supabase/schema.sql\` using the Supabase SQL Editor.
+8. In Vault Browser, select **Connect GitHub**, install the VibeVault App, choose the repositories it can access, then attach one to a Vault.
+
+The MCP server also exposes \`append_conversation_response\` for agents that have VibeVault MCP connected. Pass the exact conversation ID in the handoff package; the agent's completed response is appended to that conversation. Otherwise users can paste the response back into Inside the Vault.
