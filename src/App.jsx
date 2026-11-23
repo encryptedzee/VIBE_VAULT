@@ -664,6 +664,7 @@ function Dashboard({ session, onSignOut }) {
     setVaultTitle('')
     setVaultDescription('')
     setVaultError('')
+    setChosenModel(null)
     setActivePage('vault-create')
   }
   const createVault = async event => {
@@ -851,7 +852,7 @@ function Dashboard({ session, onSignOut }) {
             showRecent={activePage === 'overview'}
             onOpenVault={openVault}
             onHandoff={beginVaultHandoff}
-            onNewVault={() => openModelPicker('create')}
+            onNewVault={beginVaultCreation}
             onRefresh={() => void refreshVaultList()}
           />
         )}
@@ -955,7 +956,7 @@ function Dashboard({ session, onSignOut }) {
                 })}
               </div>
             ) : (
-              <div className="vv-vaults-empty"><div className="vv-vault-empty-art" aria-hidden="true"><span/><span/><span/><i/></div><span className="vv-welcome-label">NO PROJECTS YET</span><h2>Create a vault before handing off.</h2><p>Your saved project becomes the source context for the next AI.</p><button type="button" className="vv-card-button vv-card-button-primary" onClick={() => openModelPicker('create')}>Create a vault <ArrowUpRight size={16}/></button></div>
+              <div className="vv-vaults-empty"><div className="vv-vault-empty-art" aria-hidden="true"><span/><span/><span/><i/></div><span className="vv-welcome-label">NO PROJECTS YET</span><h2>Create a vault before handing off.</h2><p>Your saved project becomes the source context for the next AI.</p><button type="button" className="vv-card-button vv-card-button-primary" onClick={beginVaultCreation}>Create a vault <ArrowUpRight size={16}/></button></div>
             )}
           </div>
         )}
@@ -1012,10 +1013,10 @@ function Dashboard({ session, onSignOut }) {
                 <span className="vv-welcome-label">VAULT DETAILS</span>
                 <label className="vv-form-field"><span>Vault name</span><input autoFocus maxLength={120} required value={vaultTitle} onChange={event => setVaultTitle(event.target.value)} placeholder="e.g. VibeVault, SurePesa, ROOM..."/></label>
                 <label className="vv-form-field"><span>What are you working on? <small>OPTIONAL</small></span><textarea maxLength={1000} rows={4} value={vaultDescription} onChange={event => setVaultDescription(event.target.value)} placeholder="A short description to help you recognize this project later."/></label>
-                <div className="vv-create-vault-meta"><span><i/> PRIVATE TO YOUR ACCOUNT</span><span>AI · {chosenModel.name}</span></div>
+                <div className="vv-create-vault-meta"><span><i/> PRIVATE TO YOUR ACCOUNT</span><span>AI · {chosenModel?.name || 'Choose later'}</span></div>
                 {vaultError && <div className="vv-inline-error" role="alert">{vaultError}</div>}
                 <button type="submit" className="vv-card-button vv-card-button-primary vv-create-submit" disabled={savingVault || !vaultTitle.trim()}>{savingVault ? 'Creating vault...' : 'Create vault'} <ArrowUpRight size={16}/></button>
-                <button type="button" className="vv-selected-back vv-create-cancel" onClick={() => setActivePage('model-selected')}>Cancel</button>
+                <button type="button" className="vv-selected-back vv-create-cancel" onClick={() => goToPage('overview')}>Cancel</button>
               </form>
             </div>
           </div>
