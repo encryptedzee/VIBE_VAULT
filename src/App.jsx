@@ -482,6 +482,11 @@ function Dashboard({ session, onSignOut }) {
   const [vaultDescription, setVaultDescription] = useState('')
   const [savingVault, setSavingVault] = useState(false)
   const [selectedVault, setSelectedVault] = useState(null)
+  const [handoffVault, setHandoffVault] = useState(null)
+  const [handoffConversations, setHandoffConversations] = useState([])
+  const [handoffLoading, setHandoffLoading] = useState(false)
+  const [handoffError, setHandoffError] = useState('')
+  const [handoffCopied, setHandoffCopied] = useState(false)
   const [vaultConversations, setVaultConversations] = useState([])
   const [vaultConversationsLoading, setVaultConversationsLoading] = useState(false)
   const [vaultError, setVaultError] = useState('')
@@ -582,7 +587,61 @@ function Dashboard({ session, onSignOut }) {
   const chooseModel = () => {
     if (!activeModel) return
     setChosenModel(activeModel)
+    if (modelIntent === 'handoff') {
+      setHandoffVault(null)
+      setHandoffConversations([])
+      setHandoffError('')
+      setHandoffCopied(false)
+      setActivePage('handoff-source')
+      return
+    }
     setActivePage('model-selected')
+  }
+  const selectHandoffVault = async vault => {
+    if (!supabase || handoffLoading) return
+    setHandoffVault(vault)
+    setHandoffLoading(true)
+    setHandoffError('')
+    setHandoffCopied(false)
+    const { data, error } = await supabase
+      .from('conversations')
+      .select('id,title,source_ai,created_at,cleaned_spec')
+      .eq('project_id', vault.id)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: true })
+    if (error) {
+      setHandoffError(error.message)
+      setHandoffConversations([])
+    } else {
+      setHandoffConversations(data || [])
+      setActivePage('handoff-review')
+    }
+    setHandoffLoading(false)
+  }
+  const copyHandoffPackage = async () => {
+    if (!handoffVault || !chosenModel) return
+    const threads = handoffConversations.map((conversation, index) => [
+      '### Thread ' + (index + 1) + ': ' + conversation.title,
+      'Original AI: ' + (conversation.source_ai || 'Not specified'),
+      conversation.cleaned_spec ? String(conversation.cleaned_spec) : 'No cleaned specification was saved for this thread.'
+    ].join('\n')).join('\n\n')
+    const handoffText = [
+      '# VibeVault handoff',
+      'Project: ' + handoffVault.title,
+      'Description: ' + (handoffVault.description || 'No project description provided.'),
+      'Destination AI: ' + chosenModel.name,
+      '',
+      'You are continuing an existing project. Preserve the decisions and constraints below. First summarize your understanding, identify missing context, and ask before changing established decisions.',
+      '',
+      '## Saved conversation context',
+      threads || 'No saved conversations were found in this vault.'
+    ].join('\n')
+    try {
+      await navigator.clipboard.writeText(handoffText)
+      setHandoffCopied(true)
+    } catch {
+      setHandoffError('Clipboard access was blocked. Open this preview in a secure browser context and try again.')
+    }
   }
   const goToPage = page => {
     setActivePage(page)
@@ -882,6 +941,52 @@ function Dashboard({ session, onSignOut }) {
             ) : (
               <div className="vv-no-models"><strong>No AI model found</strong><span>Try a different name.</span></div>
             )}
+          </div>
+        )}
+
+        {activePage === 'handoff-source' && chosenModel && (
+          <div className="vv-handoff-page">
+            <button type="button" className="vv-back-link" onClick={() => goToPage('overview')}><ArrowLeft size={15}/> BACK TO WORKSPACE</button>
+            <div className="vv-page-heading">
+              <div><span className="vv-welcome-label">HANDOFF VAULT / STEP 02</span><h1>Choose a project</h1><p>Select the saved vault whose context you want to continue with {chosenModel.name}.</p></div>
+              <span className="vv-handoff-target"><span>{chosenModel.short}</span> DESTINATION · {chosenModel.name}</span>
+            </div>
+            {handoffError && <div className="vv-inline-error" role="alert">{handoffError}</div>}
+            {vaultsLoading || handoffLoading ? (
+              <div className="vv-vaults-loading"><span className="vv-loading-orbit"/><span>{handoffLoading ? 'Loading project conversations...' : 'Loading your vaults...'}</span></div>
+            ) : vaults.length ? (
+              <div className="vv-handoff-vault-list">
+                {vaults.map(vault => {
+                  const aiName = vault.tags?.find(tag => tag.startsWith('ai:'))?.slice(3) || 'AI not selected'
+                  return <button type="button" className="vv-handoff-vault-option" key={vault.id} onClick={() => selectHandoffVault(vault)}>
+                    <span className="vv-handoff-vault-icon"><FolderKanban size={19}/></span>
+                    <span className="vv-handoff-vault-copy"><strong>{vault.title}</strong><small>{vault.description || 'Saved project context'} · Original AI: {aiName}</small></span>
+                    <ArrowUpRight size={17}/>
+                  </button>
+                })}
+              </div>
+            ) : (
+              <div className="vv-vaults-empty"><div className="vv-vault-empty-art" aria-hidden="true"><span/><span/><span/><i/></div><span className="vv-welcome-label">NO PROJECTS YET</span><h2>Create a vault before handing off.</h2><p>Your saved project becomes the source context for the next AI.</p><button type="button" className="vv-card-button vv-card-button-primary" onClick={() => openModelPicker('create')}>Create a vault <ArrowUpRight size={16}/></button></div>
+            )}
+          </div>
+        )}
+
+        {activePage === 'handoff-review' && handoffVault && chosenModel && (
+          <div className="vv-handoff-page">
+            <button type="button" className="vv-back-link" onClick={() => setActivePage('handoff-source')}><ArrowLeft size={15}/> BACK TO PROJECTS</button>
+            <div className="vv-page-heading">
+              <div><span className="vv-welcome-label">HANDOFF VAULT / STEP 03</span><h1>Review your handoff</h1><p>VibeVault has gathered the saved project notes for your next AI.</p></div>
+              <span className="vv-handoff-target"><span>{chosenModel.short}</span> DESTINATION · {chosenModel.name}</span>
+            </div>
+            <div className="vv-handoff-review-grid">
+              <section className="vv-handoff-review-card"><span className="vv-welcome-label">SOURCE PROJECT</span><h2>{handoffVault.title}</h2><p>{handoffVault.description || 'No project description provided.'}</p><div className="vv-handoff-review-meta"><span><Archive size={14}/> {handoffConversations.length} saved conversations</span><span><Bot size={14}/> {handoffVault.tags?.find(tag => tag.startsWith('ai:'))?.slice(3) || 'Multiple / unspecified AI'}</span></div></section>
+              <section className="vv-handoff-review-card vv-handoff-destination-card"><span className="vv-welcome-label">NEXT AI</span><div className="vv-handoff-destination-mark">{chosenModel.short}</div><h2>{chosenModel.name}</h2><p>{chosenModel.note}</p></section>
+            </div>
+            <div className="vv-handoff-thread-list"><div className="vv-handoff-thread-heading"><strong>CONTEXT INCLUDED</strong><span>{handoffConversations.length} THREADS</span></div>
+              {handoffConversations.length ? handoffConversations.map((conversation, index) => <div className="vv-handoff-thread" key={conversation.id}><span>{String(index + 1).padStart(2, '0')}</span><div><strong>{conversation.title}</strong><small>{conversation.source_ai || 'AI not specified'} · {new Date(conversation.created_at).toLocaleDateString()}</small></div><CheckCircle2 size={16}/></div>) : <p className="vv-handoff-no-threads">This vault has no saved conversations yet. The handoff will include its project name and description only.</p>}
+            </div>
+            {handoffError && <div className="vv-inline-error" role="alert">{handoffError}</div>}
+            <div className="vv-handoff-actions"><p>Copy a structured context package, then paste it into {chosenModel.name}. This fallback works without an MCP connection; it does not automatically open or inject content into the destination AI.</p><button type="button" className="vv-card-button vv-card-button-primary" onClick={copyHandoffPackage}><Clipboard size={16}/>{handoffCopied ? 'Copied — ready to paste' : 'Copy handoff package'} <ArrowUpRight size={16}/></button></div>
           </div>
         )}
 
