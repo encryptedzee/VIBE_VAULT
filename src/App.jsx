@@ -779,45 +779,93 @@ function Dashboard({ session, onSignOut }) {
 
       <section className="vv-dashboard-canvas" aria-label="Workspace">
         {activePage === 'overview' && (
-          <div className="vv-overview-page">
-            <div className="vv-welcome-block">
-              <span className="vv-welcome-label">YOUR PERSONAL AI SPACE</span>
-              <h1>Good {greeting}, {firstName}</h1>
-              <p>Your context has a home. Choose where you want to begin.</p>
-            </div>
+          <div className="vv-overview-page vv-overview-dashboard">
+            <header className="vv-overview-header">
+              <div className="vv-overview-heading">
+                <span className="vv-welcome-label">WORKSPACE / OVERVIEW</span>
+                <h1>Good {greeting}, {firstName}</h1>
+                <p>Your projects, conversations and AI handoffs — organized in one place.</p>
+              </div>
+              <div className="vv-overview-header-actions">
+                <button type="button" className="vv-card-button vv-card-button-secondary" onClick={() => openModelPicker('handoff')}><Workflow size={15}/> Start a handoff</button>
+                <button type="button" className="vv-card-button vv-card-button-primary" onClick={() => openModelPicker('create')}><Plus size={16}/> New vault</button>
+              </div>
+            </header>
 
-            <div className="vv-action-grid">
-              <article className="vv-action-card vv-create-card">
-                <div className="vv-action-card-top"><span>01 / CREATE</span><span className="vv-action-pill">START HERE</span></div>
-                <div className="vv-card-illustration vv-create-illustration" aria-hidden="true">
-                  <span className="vv-create-orbit"/>
-                  <span className="vv-create-sheet vv-sheet-one"/>
-                  <span className="vv-create-sheet vv-sheet-two"/>
-                  <span className="vv-create-sheet vv-sheet-three"/>
-                  <span className="vv-create-plus">+</span>
-                </div>
-                <div className="vv-action-card-copy">
-                  <h2>Create a Vault</h2>
-                  <p>Choose the AI you are working with before you start saving its conversations.</p>
-                  <button type="button" className="vv-card-button vv-card-button-primary" onClick={() => openModelPicker('create')}>Create a Vault <ArrowUpRight size={16}/></button>
-                </div>
+            <section className="vv-overview-metrics" aria-label="Workspace summary">
+              <article className="vv-overview-metric">
+                <div className="vv-overview-metric-top"><span>PROJECT VAULTS</span><FolderKanban size={16}/></div>
+                <strong>{vaultsLoading ? '—' : vaults.length}</strong>
+                <small>{vaults.length === 1 ? 'One saved project' : 'Saved project spaces'}</small>
               </article>
+              <article className="vv-overview-metric">
+                <div className="vv-overview-metric-top"><span>SUPPORTED DESTINATIONS</span><Sparkles size={16}/></div>
+                <strong>{aiModels.length}</strong>
+                <small>Available AI workspaces</small>
+              </article>
+              <article className="vv-overview-metric vv-overview-metric-update">
+                <div className="vv-overview-metric-top"><span>LATEST PROJECT UPDATE</span><Clock3 size={16}/></div>
+                <strong>{vaultsLoading ? '—' : vaults[0] ? new Date(vaults[0].updated_at || vaults[0].created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—'}</strong>
+                <small>{vaultsLoading ? 'Checking your activity' : vaults[0] ? vaults[0].title : 'No project activity yet'}</small>
+              </article>
+            </section>
 
-              <article className="vv-action-card vv-handoff-card">
-                <div className="vv-action-card-top"><span>02 / CONTINUE</span><span className="vv-action-pill vv-action-pill-cyan">AI TRANSFER</span></div>
-                <div className="vv-card-illustration vv-handoff-illustration" aria-hidden="true">
-                  <span className="vv-handoff-orbit"/>
-                  <span className="vv-handoff-node vv-node-one"/>
-                  <span className="vv-handoff-node vv-node-two"/>
-                  <span className="vv-handoff-node vv-node-three"/>
-                  <span className="vv-handoff-path"/>
+            <div className="vv-overview-content-grid">
+              <section className="vv-overview-project-panel">
+                <div className="vv-overview-section-heading">
+                  <div><span className="vv-overview-kicker">YOUR WORK</span><h2>Recent projects</h2></div>
+                  <button type="button" className="vv-overview-text-link" onClick={() => goToPage('vaults')}>View all projects <ArrowUpRight size={14}/></button>
                 </div>
-                <div className="vv-action-card-copy">
-                  <h2>Handoff Vault</h2>
-                  <p>Choose the AI you are moving your work to. Its identity will shape your handoff space.</p>
-                  <button type="button" className="vv-card-button vv-card-button-secondary" onClick={() => openModelPicker('handoff')}>Choose an AI <ArrowUpRight size={16}/></button>
-                </div>
-              </article>
+                {vaultError && <div className="vv-inline-error" role="alert">{vaultError}</div>}
+                {vaultsLoading ? (
+                  <div className="vv-overview-project-loading"><span className="vv-loading-orbit"/><span>Loading your projects...</span></div>
+                ) : vaults.length ? (
+                  <div className="vv-overview-project-list">
+                    {vaults.slice(0, 4).map(vault => {
+                      const aiName = vault.tags?.find(tag => tag.startsWith('ai:'))?.slice(3) || 'AI not selected'
+                      const aiModel = aiModels.find(model => model.name === aiName)
+                      return (
+                        <button type="button" className="vv-overview-project-row" key={vault.id} onClick={() => openVault(vault)}>
+                          <span className="vv-overview-project-icon" style={aiModel ? modelTheme(aiModel) : undefined}><FolderKanban size={18}/></span>
+                          <span className="vv-overview-project-copy"><strong>{vault.title}</strong><small>{vault.description || 'Project memory and saved AI context'}</small></span>
+                          <span className="vv-overview-project-meta"><em>{aiName}</em><small>{new Date(vault.updated_at || vault.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</small></span>
+                          <ChevronRight size={17} className="vv-overview-project-arrow"/>
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="vv-overview-empty-projects">
+                    <span className="vv-overview-empty-icon"><FolderKanban size={20}/></span>
+                    <div><strong>Your first project starts here</strong><p>Create a vault to keep project conversations, decisions and working context together.</p></div>
+                    <button type="button" className="vv-card-button vv-card-button-primary" onClick={() => openModelPicker('create')}>Create a vault <ArrowUpRight size={15}/></button>
+                  </div>
+                )}
+              </section>
+
+              <aside className="vv-overview-side-column">
+                <section className="vv-overview-handoff-panel">
+                  <div className="vv-overview-panel-icon"><Workflow size={18}/></div>
+                  <span className="vv-overview-kicker">KEEP YOUR WORK MOVING</span>
+                  <h2>Continue with another AI.</h2>
+                  <p>Choose a saved project, review the context and prepare it for your next AI workspace.</p>
+                  <button type="button" className="vv-card-button vv-card-button-primary" onClick={() => openModelPicker('handoff')}>Open handoff vault <ArrowUpRight size={15}/></button>
+                </section>
+                <section className="vv-overview-providers-panel">
+                  <div className="vv-overview-section-heading">
+                    <div><span className="vv-overview-kicker">AVAILABLE WORKSPACES</span><h2>AI destinations</h2></div>
+                    <span className="vv-overview-provider-count">{aiModels.length}</span>
+                  </div>
+                  <div className="vv-overview-provider-list">
+                    {aiModels.slice(0, 4).map(model => (
+                      <div className="vv-overview-provider" key={model.name}>
+                        <span style={modelTheme(model)}>{model.short}</span><strong>{model.name}</strong><small>{model.note}</small>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="vv-overview-provider-foot">And {Math.max(0, aiModels.length - 4)} more available destinations.</p>
+                </section>
+              </aside>
             </div>
           </div>
         )}
