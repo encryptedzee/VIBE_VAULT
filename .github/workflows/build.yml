@@ -2,7 +2,7 @@ name: VibeVault build
 
 on:
   push:
-    branches: [main]
+    branches: [main, feature/vault-browser-github-connect]
   pull_request:
     branches: [main]
 

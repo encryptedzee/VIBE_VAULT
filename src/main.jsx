@@ -5,6 +5,7 @@ import App from './App'
 import './index.css'
 import './typography.css'
 import './workspace-theme.css'
+import './vault-workspace.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode><BrowserRouter><App /></BrowserRouter></React.StrictMode>

@@ -20,7 +20,8 @@ const tools = [
   { name: "export_project_bundle", description: "Export a user's project context bundle. First list_projects and ask the user which destination project to use; use their explicit project_id. Include the receiving AI and task purpose in transfer_context. Never guess the destination.", inputSchema: { type: "object", properties: { project_id: { type: "string" }, target_ai: { type: "string" }, task_purpose: { type: "string" } }, required: ["project_id","target_ai"], additionalProperties: false } },
   { name: "import_conversations", description: "Import user-supplied original conversation records into the selected VibeVault project. First list_projects and ask the user to choose the destination; do not guess. Preserve raw_content exactly. If the user has a saved agent preference, show its name and ask for confirmation. If they manually choose an AI, also ask what it should be used for.", inputSchema: { type: "object", properties: { project_id: { type: "string" }, target_ai: { type: "string" }, agent_mode: { type: "string", enum: ["saved","manual"] }, task_purpose: { type: "string" }, conversations: { type: "array", minItems: 1, maxItems: 40, items: { type: "object", properties: { title: { type: "string" }, source_ai: { type: "string" }, raw_content: { type: "string" }, tags: { type: "array", items: { type: "string" } } }, required: ["title","source_ai","raw_content"], additionalProperties: false } } }, required: ["project_id","target_ai","agent_mode","conversations"], additionalProperties: false } },
   { name: "save_session_summary", description: "Save a summary of this AI work session to the selected VibeVault project. This is not a full raw transcript.", inputSchema: { type: "object", properties: { project_id: { type: "string" }, title: { type: "string" }, summary: { type: "string" }, source_ai: { type: "string" } }, required: ["project_id", "title", "summary"], additionalProperties: false } },
-  { name: "save_project_decision", description: "Save a user-approved project decision or an unresolved question. Do not mark an unapproved suggestion as approved.", inputSchema: { type: "object", properties: { project_id: { type: "string" }, title: { type: "string" }, content: { type: "string" }, status: { type: "string", enum: ["approved", "proposed", "open", "resolved", "superseded"] }, source_ai: { type: "string" } }, required: ["project_id", "title", "content"], additionalProperties: false } }
+  { name: "save_project_decision", description: "Save a user-approved project decision or an unresolved question. Do not mark an unapproved suggestion as approved.", inputSchema: { type: "object", properties: { project_id: { type: "string" }, title: { type: "string" }, content: { type: "string" }, status: { type: "string", enum: ["approved", "proposed", "open", "resolved", "superseded"] }, source_ai: { type: "string" } }, required: ["project_id", "title", "content"], additionalProperties: false } },
+  { name: "append_conversation_response", description: "Save your finished response to the exact VibeVault conversation handed to you. Use the conversation_id from the handoff, never guess another destination. Only call after the user asked you to work on that conversation.", inputSchema: { type: "object", properties: { conversation_id: { type: "string" }, agent_name: { type: "string" }, response: { type: "string" } }, required: ["conversation_id", "agent_name", "response"], additionalProperties: false } }
 ];
 
 Deno.serve(async (req) => {
@@ -130,6 +131,21 @@ Deno.serve(async (req) => {
         const { data, error } = await admin.from("conversations").insert(rows).select("id,title,source_ai,created_at");
         if (error) throw error;
         return respond(content({ imported: data?.length || 0, project, target_ai: target, agent_mode: mode, records: data || [], note: "Original raw_content was stored without rewriting." }));
+      }
+      if (name === "append_conversation_response") {
+        const conversationId = String(args.conversation_id || "");
+        const agentName = String(args.agent_name || "").trim().slice(0, 80);
+        const responseText = String(args.response || "").trim();
+        if (!conversationId || !agentName || !responseText) return fail(-32602, "conversation_id, agent_name and response are required.");
+        if (responseText.length > 200000) return fail(-32602, "Response must be 200 KB or smaller.");
+        const { data, error } = await admin.rpc("append_conversation_response", {
+          p_conversation_id: conversationId,
+          p_user_id: integration.user_id,
+          p_agent_name: agentName,
+          p_response_content: responseText
+        });
+        if (error) throw error;
+        return respond(content(data || { saved: true, conversation_id: conversationId }));
       }
       if (name === "get_project_context" || name === "get_handoff_context") {
         const { data: project, error: projectError } = await admin.from("projects").select("id,title,description,project_rules,tags,updated_at").eq("id", projectId).eq("user_id", integration.user_id).maybeSingle();
