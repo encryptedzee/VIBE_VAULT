@@ -2,9 +2,9 @@ name: VibeVault build
 
 on:
   push:
-    branches: [main, feature/vault-browser-github-connect]
+    branches: [main, feature/vault-browser-github-connect, feature/vault-browser-preview-reset]
   pull_request:
-    branches: [main]
+    branches: [main, feature/professional-workspace-redesign]
 
 jobs:
   build:
