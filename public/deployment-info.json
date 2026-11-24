@@ -1,10 +1,10 @@
 {
   "application": "VibeVault",
   "channel": "feature-preview",
-  "branch": "feature/vault-browser-github-connect",
-  "releaseLabel": "vault-browser-inside-vault-2026-11-24",
-  "previewHost": "feature-vault-browser-github-connect-vibevault.vibevault-hq.workers.dev",
+  "branch": "feature/vault-browser-preview-reset",
+  "releaseLabel": "vault-browser-clean-preview-2026-11-24",
+  "previewHost": "feature-vault-browser-preview-reset-vibevault.vibevault-hq.workers.dev",
   "productionHost": "vibevault.vibevault-hq.workers.dev",
-  "visibleMarker": "FEATURE PREVIEW · VAULT BROWSER",
+  "visibleMarker": "FEATURE PREVIEW · CLEAN VAULT BROWSER",
   "cachePolicy": "html-no-store-assets-immutable"
 }
